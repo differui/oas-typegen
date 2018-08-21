@@ -1,0 +1,211 @@
+import { GeneratorOptions } from '@/core/Generator';
+import JsGenerator from '@/core/generators/JsGenerator';
+import TsGenerator from '@/core/generators/TsGenerator';
+import OasDocument from '@/core/libs/OasDocument';
+import PrettierUtils from '@/core/libs/PrettierUtils';
+import Tapable from '@/core/libs/Tapable';
+import DefinitionFragment from '@/core/oas-fragments/DefinitionFragment';
+import OperationRequestFragment from '@/core/oas-fragments/OperationRequestFragment';
+import OperationResponseFragment from '@/core/oas-fragments/OperationResponseFragment';
+import DefinitionVisitor from '@/core/oas-visitors/DefinitionVisitor';
+import OperationVisitor from '@/core/oas-visitors/OperationVisitor';
+import Plugin from '@/core/Plugin';
+import * as identifier from '@/identifier';
+import FileSystem from '@/util/FileSystem';
+import { inject, injectable } from 'inversify';
+import { OpenAPIV2 } from 'openapi-types';
+import { Options as PrettierOptions } from 'prettier';
+import { AsyncParallelHook, AsyncSeriesBailHook, AsyncSeriesHook } from 'tapable';
+
+export interface FactoryInputOptions {
+  url?: string;
+  path?: string;
+  name?: string;
+}
+
+export interface FactoryOutputOptions {
+  path?: string;
+  format?: 'cjs'|'es';
+  language?: 'ts'|'js'|'dts';
+  intro?: string;
+  outro?: string;
+  silent?: boolean;
+  helper?: string;
+  helperName?: string;
+}
+
+export interface FactoryOptions {
+  input?: FactoryInputOptions;
+  output?: FactoryOutputOptions;
+  plugins?: Array<Plugin>;
+  prettier?: PrettierOptions;
+}
+
+export const DEFAULT_INPUT_OPTIONS: Required<FactoryInputOptions> = {
+  url: '',
+  path: '',
+  name: 'type-document',
+};
+
+export const DEFAULT_OUTPUT_OPTIONS: Required<FactoryOutputOptions> = {
+  path: '',
+  format: 'es',
+  language: 'js',
+  intro: '',
+  outro: '',
+  silent: false,
+  helper: '',
+  helperName: 'dispatchRequest',
+};
+
+export const DEFAULT_PRETTIER_OPTIONS: PrettierOptions = {
+  parser: 'babylon',
+  semi: true,
+  singleQuote: true,
+  trailingComma: 'es5',
+  bracketSpacing: false,
+};
+
+export const DEFAULT_OPTIONS = {
+  input: DEFAULT_INPUT_OPTIONS as Required<FactoryInputOptions>,
+  output: DEFAULT_OUTPUT_OPTIONS as Required<FactoryOutputOptions>,
+  plugins: [],
+  prettier: DEFAULT_PRETTIER_OPTIONS,
+};
+
+@injectable()
+class Factory extends Tapable {
+  public hooks = {
+    applyPlugins: new AsyncSeriesHook<Array<Plugin>>(['plugins']),
+    options: new AsyncParallelHook<FactoryOptions>(['options']),
+    mergeOptions: new AsyncParallelHook<typeof DEFAULT_OPTIONS>(['mergedOptions']),
+    createDocument: new AsyncSeriesHook<OasDocument>(['document']),
+    createDefinitionFragment: new AsyncSeriesHook<DefinitionFragment>(['definitionFragment']),
+    createRequestOperationFragment: new AsyncSeriesHook<OperationRequestFragment>(['operationRequestFragment']),
+    createResponseOperationFragment: new AsyncSeriesHook<OperationResponseFragment>(['operationResponseFragment']),
+    createGenerator: new AsyncSeriesHook<JsGenerator|TsGenerator, GeneratorOptions>(['code', 'options']),
+    generate: new AsyncSeriesBailHook<string>(['string']),
+    write: new AsyncParallelHook<typeof DEFAULT_OPTIONS>(['options', 'code']),
+  };
+
+  @inject(identifier.OasDocument) private oasDocument: OasDocument;
+  @inject(identifier.OperationVisitor) private operationVisitor: OperationVisitor;
+  @inject(identifier.DefinitionVisitor) private definitionVisitor: DefinitionVisitor;
+  @inject(identifier.TsGenerator) private tsGenerator: TsGenerator;
+  @inject(identifier.JsGenerator) private jsGenerator: JsGenerator;
+  @inject(identifier.PrettierUtils) private prettierUtils: PrettierUtils;
+  @inject(identifier.FileSystem) private fileSystem: FileSystem;
+
+  public constructor() {
+    super();
+  }
+
+  public async build(document: OpenAPIV2.Document, options?: FactoryOptions);
+  public async build(document: OpenAPIV2.Document, plugins?: Array<Plugin>, options?: FactoryOptions);
+  public async build(document: OpenAPIV2.Document, plugins?: Array<Plugin>|FactoryOptions, options?: FactoryOptions) {
+    // apply plugins and invoke hook
+    if (Array.isArray(plugins)) {
+      plugins.forEach(plugin => plugin.apply(this));
+      await this.hooks.applyPlugins.promise(Array.isArray(plugins) ? plugins : []);
+    } else {
+      options = plugins;
+    }
+    await this.hooks.options.promise(options);
+
+    // merge options and invoke hook
+    const mergedOptions = this.mergeOptions(options);
+
+    await this.hooks.options.promise(mergedOptions);
+
+    // create oas document use visitors filter out document fragments
+    this.oasDocument.create(document);
+    await this.hooks.createDocument.promise(this.oasDocument);
+    this.oasDocument.visit(this.definitionVisitor);
+    this.oasDocument.visit(this.operationVisitor);
+
+    const definitionFragments = Array.from(this.definitionVisitor.definitions.values());
+    const requestOperationFragments = Array.from(this.operationVisitor.request.values());
+    const responseOperationFragments = Array.from(this.operationVisitor.response.values());
+
+    await Promise.all([
+      ...definitionFragments.map(fragment => this.hooks.createDefinitionFragment.promise(fragment)),
+      ...requestOperationFragments.map(fragment => this.hooks.createRequestOperationFragment.promise(fragment)),
+      ...responseOperationFragments.map(fragment => this.hooks.createResponseOperationFragment.promise(fragment)),
+    ]);
+
+    // generate code
+    const fragments = [
+      ...definitionFragments,
+      ...requestOperationFragments,
+      ...responseOperationFragments,
+    ];
+    const generateOptions: GeneratorOptions = {
+      format: mergedOptions.output.format,
+      helper: mergedOptions.output.helper,
+      helperName: mergedOptions.output.helperName,
+    };
+    let code = '';
+
+    switch (mergedOptions.output.language) {
+      case 'ts':
+        await this.hooks.createGenerator.promise(this.tsGenerator, generateOptions);
+        code = await this.tsGenerator.generate(fragments, generateOptions);
+        break;
+      case 'js':
+        await this.hooks.createGenerator.promise(this.jsGenerator, generateOptions);
+        code = await this.jsGenerator.generate(fragments, generateOptions);
+        break;
+      default:
+        break;
+    }
+    code = this.prettierUtils.format([
+      mergedOptions.output.intro,
+      code,
+      mergedOptions.output.outro,
+      '\n', // trailing newline
+    ].filter(Boolean).join('\n'), mergedOptions.prettier);
+    code = await this.hooks.generate.promise(code);
+
+    // output document or write to stdout
+    const {
+      path,
+    } = mergedOptions.output;
+
+    if (path) {
+      await this.hooks.write.promise(mergedOptions, code);
+      this.fileSystem.writeFile(path, code);
+      if (process.env.NODE_ENV === 'development') {
+        this.fileSystem.writeFile(path + '.json', JSON.stringify(document, undefined, 2));
+      }
+    } else if (!mergedOptions.output.silent) {
+      process.stdout.write(code);
+    }
+  }
+
+  private mergeOptions(options?: FactoryOptions) {
+    if (!options) {
+      return DEFAULT_OPTIONS;
+    }
+    const input: Required<FactoryInputOptions> = {
+      ...DEFAULT_INPUT_OPTIONS,
+      ...options.input,
+    };
+    const output: Required<FactoryOutputOptions> = {
+      ...DEFAULT_OUTPUT_OPTIONS,
+      ...options.output,
+    };
+    const prettier: PrettierOptions = {
+      ...DEFAULT_PRETTIER_OPTIONS,
+      ...options.prettier,
+    };
+
+    return {
+      input,
+      output,
+      plugins: [] as Array<Plugin>,
+      prettier,
+    } as typeof DEFAULT_OPTIONS;
+  }
+}
+
+export default Factory;

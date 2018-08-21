@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "declaration": true,
+    "declarationDir": "./dest",
+    "target": "es2015",
+    "module": "esnext",
+    "lib": [
+      "es2017",
+      "es2015",
+      "es2015.promise",
+    ],
+    "strict": true,
+    "noImplicitAny": false,
+    "noUnusedLocals": true,
+    "resolveJsonModule": true,
+    "noUnusedParameters": false,
+    "moduleResolution": "node",
+    "importHelpers": true,
+    "strictPropertyInitialization": false,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "~/*": ["test/*"]
+    },
+    "types": [
+      "node",
+      "jest"
+    ],
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  },
+  "include": [
+    "./src/**/*.ts",
+    "./test/**/*.ts",
+    "./types/**/*.ts"
+  ],
+  "exclde": [
+    "node_modules"
+  ]
+}

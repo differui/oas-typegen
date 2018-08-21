@@ -1,0 +1,7 @@
+dest/
+dumb/
+scripts/ares/
+package-lock.json
+.DS_Store
+.vscode/
+node_modules/

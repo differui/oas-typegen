@@ -1,0 +1,58 @@
+@startuml
+participant CLI
+participant Compiler
+participant "FS/NETWORK"
+
+-> CLI: config
+
+|||
+
+CLI -> Compiler: input source
+
+|||
+
+activate Compiler
+
+|||
+
+Compiler -> "FS/NETWORK": read, download .json/.yaml\ncompile to JS
+activate "FS/NETWORK"
+"FS/NETWORK" --> Compiler: return JS
+deactivate "FS/NETWORK"
+
+|||
+
+Compiler -> Compiler: process & basic rules
+activate Compiler
+Compiler --> CLI: report errors
+deactivate Compiler
+
+|||
+
+
+Compiler -> Compiler: compose json schema\ncompile to TS
+activate Compiler
+Compiler --> CLI: report errors
+deactivate Compiler
+
+|||
+
+Compiler -> Compiler: render templates\nvalidate & format .js/.d.ts
+activate Compiler
+Compiler --> CLI: report errors
+deactivate Compiler
+
+|||
+
+Compiler -> "FS/NETWORK": write, upload .js/.d.ts
+activate "FS/NETWORK"
+"FS/NETWORK" --> Compiler: done
+deactivate "FS/NETWORK"
+
+|||
+
+Compiler -> CLI: success
+
+deactivate Compiler
+
+@enduml

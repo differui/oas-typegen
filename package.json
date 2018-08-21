@@ -1,0 +1,73 @@
+{
+  "name": "openapi-typegen",
+  "version": "0.0.1",
+  "description": "Generate TS/JS/DTS type definitions from OpenAPI document (V2).",
+  "main": "dest/bundle.js",
+  "scripts": {
+    "build": "npx rollup -c",
+    "postbuild": "echo '#!/usr/bin/env node' > ./bin/typegen.js && cat ./dest/bundle.js >> ./bin/typegen.js",
+    "watch": "npx rollup -c -w",
+    "prestart": "npm run build",
+    "start": "node dest/bundle.js",
+    "test": "jest"
+  },
+  "keywords": [
+    "openapi",
+    "swagger",
+    "typescript",
+    "jsdoc"
+  ],
+  "author": "differui<differui@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/differui/openapi-typegen.git"
+  },
+  "files": [
+    "dest",
+    "bin"
+  ],
+  "bin": {
+    "typegen": "bin/typegen.js",
+    "openapi-typegen": "bin/typegen.js"
+  },
+  "devDependencies": {
+    "@types/jest": "^23.3.5",
+    "@types/json-schema": "^7.0.1",
+    "@types/md5": "^2.1.33",
+    "@types/meow": "^5.0.0",
+    "@types/prettier": "^1.15.0",
+    "@types/tapable": "^1.0.4",
+    "axios-mock-adapter": "^1.15.0",
+    "eslint": "^3.19.0",
+    "eslint-config-airbnb-base": "^11.2.0",
+    "eslint-plugin-import": "^2.3.0",
+    "jest": "^23.6.0",
+    "mock-fs": "^4.7.0",
+    "rollup": "^0.41.6",
+    "rollup-plugin-alias": "^1.4.0",
+    "rollup-plugin-eslint": "^3.0.0",
+    "rollup-plugin-json": "^3.1.0",
+    "rollup-plugin-replace": "^1.1.1",
+    "rollup-plugin-typescript": "^0.8.1",
+    "rollup-watch": "^3.2.2",
+    "ts-jest": "^23.10.4",
+    "typescript": "^3.1.3"
+  },
+  "dependencies": {
+    "axios": "^0.18.0",
+    "inversify": "^4.13.0",
+    "json-schema-to-typescript": "^6.0.1",
+    "md5": "^2.2.1",
+    "memory-fs": "^0.4.1",
+    "meow": "^5.0.0",
+    "oai-ts-core": "^0.2.27",
+    "openapi-jsonschema-parameters": "^1.0.3",
+    "openapi-types": "^1.3.2",
+    "prettier": "^1.15.2",
+    "reflect-metadata": "^0.1.12",
+    "tapable": "^1.1.0",
+    "tslib": "^1.9.3",
+    "yaml": "^1.0.0"
+  }
+}
