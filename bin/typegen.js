@@ -8,6 +8,7 @@ require('reflect-metadata');
 var inversify = require('inversify');
 var meow = _interopDefault(require('meow'));
 var path = require('path');
+var ora = _interopDefault(require('ora'));
 var tapable = require('tapable');
 var jsonSchemaToTypescript = require('json-schema-to-typescript');
 var jsonSchemaToTypescript_dist_src_types_AST = require('json-schema-to-typescript/dist/src/types/AST');
@@ -25,11 +26,12 @@ var fs = require('fs');
 var util = require('util');
 var YAML = _interopDefault(require('yaml'));
 var openapiJsonschemaParameters = require('openapi-jsonschema-parameters');
-var axios = _interopDefault(require('axios'));
 var md5 = _interopDefault(require('md5'));
+var axios = _interopDefault(require('axios'));
 
 // libs
 const Tapable$1 = Symbol('Tapable');
+const Spinner = Symbol('Spinner');
 const PrettierUtils = Symbol('PrettierUtils');
 const IdentifierUtils = Symbol('IdentifierUtils');
 const JsonSchemaUtils = Symbol('JsonSchemaUtils');
@@ -56,6 +58,7 @@ const JsGenerator = Symbol('JsGenerator');
 // built-in plugins
 const EnhanceTypeNamePlugin = Symbol('EnhanceTypeNamePlugin');
 const FixRefPlugin = Symbol('FixRefPlugin');
+const LogPlugin = Symbol('LogPlugin');
 // maps
 const HookMap = Symbol('HookMap');
 const OasFragmentMap = Symbol('OasFragmentMap');
@@ -205,6 +208,7 @@ let CLI$1 = class CLI$$1 {
     }
     get plugins() {
         return [
+            container.get(LogPlugin),
             container.get(EnhanceTypeNamePlugin),
             container.get(FixRefPlugin),
         ];
@@ -221,6 +225,74 @@ CLI$1 = tslib_1.__decorate([
     tslib_1.__metadata("design:paramtypes", [])
 ], CLI$1);
 var CLI$2 = CLI$1;
+
+let Spinner$1 = class Spinner {
+    constructor() {
+        this.spinner = ora('Loading unicorns');
+    }
+    start(text) {
+        this.spinner.start(text);
+    }
+    stop() {
+        this.spinner.stop();
+    }
+    refresh(text) {
+        this.spinner.text = text;
+    }
+    succeed(text) {
+        this.spinner.succeed(text);
+    }
+    fail(text) {
+        this.spinner.fail(text);
+    }
+    warn(text) {
+        this.spinner.warn(text);
+    }
+    info(text) {
+        this.spinner.info(text);
+    }
+};
+Spinner$1 = tslib_1.__decorate([
+    inversify.injectable()
+], Spinner$1);
+var Spinner$2 = Spinner$1;
+
+var _a;
+let LogPlugin$1 = class LogPlugin$$1 {
+    constructor() {
+        this.name = 'LogPlugin';
+    }
+    apply(factory) {
+        factory.hooks.applyPlugins.tap(this.name, this.handleStart.bind(this, 'apply plugins'));
+        factory.hooks.options.tap(this.name, this.handleProcess.bind(this, 'loading options'));
+        factory.hooks.createDocument.tap(this.name, this.handleProcess.bind(this, 'creating oai document instance'));
+        factory.hooks.createDefinitionFragment.tap(this.name, definitionFragment => this.handleProcess(`creating definition fragment: ${definitionFragment.title}`));
+        factory.hooks.createRequestOperationFragment.tap(this.name, requestOperationFragment => this.handleProcess(`creating request operation fragment: ${requestOperationFragment.title}`));
+        factory.hooks.createResponseOperationFragment.tap(this.name, responseOperationFragment => this.handleProcess(`creating response operation fragment: ${responseOperationFragment.title}`));
+        factory.hooks.generate.tap(this.name, this.handleStop.bind(this, 'DONE!'));
+    }
+    handleProcess(text) {
+        this.spinner.refresh(text);
+    }
+    handleError() {
+        // todo
+    }
+    handleStart(text) {
+        this.spinner.start(text);
+    }
+    handleStop(text) {
+        this.spinner.refresh(text);
+        this.spinner.stop();
+    }
+};
+tslib_1.__decorate([
+    inversify.inject(Spinner),
+    tslib_1.__metadata("design:type", typeof (_a = typeof Spinner$2 !== "undefined" && Spinner$2) === "function" ? _a : Object)
+], LogPlugin$1.prototype, "spinner", void 0);
+LogPlugin$1 = tslib_1.__decorate([
+    inversify.injectable()
+], LogPlugin$1);
+var LogPlugin$2 = LogPlugin$1;
 
 let Generator = class Generator {
     constructor() {
@@ -263,7 +335,7 @@ Queue = Queue_1 = tslib_1.__decorate([
 ], Queue);
 var Queue$1 = Queue;
 
-var _a$2;
+var _a$3;
 const DELIMITER_TAG = Symbol('DELIMITER_TAG');
 let JsDocUtils$1 = class JsDocUtils$$1 {
     constructor() {
@@ -448,7 +520,7 @@ let JsDocUtils$1 = class JsDocUtils$$1 {
 };
 tslib_1.__decorate([
     inversify.inject(AstQueue),
-    tslib_1.__metadata("design:type", typeof (_a$2 = typeof Queue$1 !== "undefined" && Queue$1) === "function" ? _a$2 : Object)
+    tslib_1.__metadata("design:type", typeof (_a$3 = typeof Queue$1 !== "undefined" && Queue$1) === "function" ? _a$3 : Object)
 ], JsDocUtils$1.prototype, "astQueue", void 0);
 JsDocUtils$1 = tslib_1.__decorate([
     inversify.injectable()
@@ -580,7 +652,7 @@ OasFragment$1 = tslib_1.__decorate([
 ], OasFragment$1);
 var OasFragment$2 = OasFragment$1;
 
-var _a$1;
+var _a$2;
 var _b$1;
 let JsGenerator$1 = class JsGenerator$$1 extends Generator$1 {
     generate(fragments, options) {
@@ -668,7 +740,7 @@ let JsGenerator$1 = class JsGenerator$$1 extends Generator$1 {
 };
 tslib_1.__decorate([
     inversify.inject(JsonSchemaUtils),
-    tslib_1.__metadata("design:type", typeof (_a$1 = typeof JsonSchemaUtils$2 !== "undefined" && JsonSchemaUtils$2) === "function" ? _a$1 : Object)
+    tslib_1.__metadata("design:type", typeof (_a$2 = typeof JsonSchemaUtils$2 !== "undefined" && JsonSchemaUtils$2) === "function" ? _a$2 : Object)
 ], JsGenerator$1.prototype, "jsonSchemaUtils", void 0);
 tslib_1.__decorate([
     inversify.inject(JsDocUtils),
@@ -679,7 +751,7 @@ JsGenerator$1 = tslib_1.__decorate([
 ], JsGenerator$1);
 var JsGenerator$2 = JsGenerator$1;
 
-var _a$3;
+var _a$4;
 let TsGenerator$1 = class TsGenerator$$1 extends Generator$1 {
     generate(fragments, options) {
         return tslib_1.__awaiter(this, void 0, void 0, function* () {
@@ -751,14 +823,14 @@ let TsGenerator$1 = class TsGenerator$$1 extends Generator$1 {
 };
 tslib_1.__decorate([
     inversify.inject(JsonSchemaUtils),
-    tslib_1.__metadata("design:type", typeof (_a$3 = typeof JsonSchemaUtils$2 !== "undefined" && JsonSchemaUtils$2) === "function" ? _a$3 : Object)
+    tslib_1.__metadata("design:type", typeof (_a$4 = typeof JsonSchemaUtils$2 !== "undefined" && JsonSchemaUtils$2) === "function" ? _a$4 : Object)
 ], TsGenerator$1.prototype, "jsonSchemaUtils", void 0);
 TsGenerator$1 = tslib_1.__decorate([
     inversify.injectable()
 ], TsGenerator$1);
 var TsGenerator$2 = TsGenerator$1;
 
-var _a$4;
+var _a$5;
 inversify.decorate(inversify.injectable(), oaiTsCore.OasLibraryUtils);
 let OasDocument$1 = class OasDocument$$1 {
     get definitions() {
@@ -791,7 +863,7 @@ let OasDocument$1 = class OasDocument$$1 {
 };
 tslib_1.__decorate([
     inversify.inject(OasLibraryUtils$1),
-    tslib_1.__metadata("design:type", typeof (_a$4 = typeof oaiTsCore.OasLibraryUtils !== "undefined" && oaiTsCore.OasLibraryUtils) === "function" ? _a$4 : Object)
+    tslib_1.__metadata("design:type", typeof (_a$5 = typeof oaiTsCore.OasLibraryUtils !== "undefined" && oaiTsCore.OasLibraryUtils) === "function" ? _a$5 : Object)
 ], OasDocument$1.prototype, "library", void 0);
 OasDocument$1 = tslib_1.__decorate([
     inversify.injectable()
@@ -825,7 +897,7 @@ OasVisitor = tslib_1.__decorate([
 ], OasVisitor);
 var OasVisitor$1 = OasVisitor;
 
-var _a$5;
+var _a$6;
 let DefinitionVisitor$1 = class DefinitionVisitor$$1 extends OasVisitor$1 {
     visitSchemaDefinition(definitionSchemaDocument) {
         const definition = container.get(DefinitionFragment);
@@ -835,14 +907,14 @@ let DefinitionVisitor$1 = class DefinitionVisitor$$1 extends OasVisitor$1 {
 };
 tslib_1.__decorate([
     inversify.inject(OasFragmentMap),
-    tslib_1.__metadata("design:type", typeof (_a$5 = typeof Map !== "undefined" && Map) === "function" ? _a$5 : Object)
+    tslib_1.__metadata("design:type", typeof (_a$6 = typeof Map !== "undefined" && Map) === "function" ? _a$6 : Object)
 ], DefinitionVisitor$1.prototype, "definitions", void 0);
 DefinitionVisitor$1 = tslib_1.__decorate([
     inversify.injectable()
 ], DefinitionVisitor$1);
 var DefinitionVisitor$2 = DefinitionVisitor$1;
 
-var _a$6;
+var _a$7;
 var _b$2;
 let OperationVisitor$1 = class OperationVisitor$$1 extends OasVisitor$1 {
     visitOperation(operationDocument) {
@@ -856,7 +928,7 @@ let OperationVisitor$1 = class OperationVisitor$$1 extends OasVisitor$1 {
 };
 tslib_1.__decorate([
     inversify.inject(OasFragmentMap),
-    tslib_1.__metadata("design:type", typeof (_a$6 = typeof Map !== "undefined" && Map) === "function" ? _a$6 : Object)
+    tslib_1.__metadata("design:type", typeof (_a$7 = typeof Map !== "undefined" && Map) === "function" ? _a$7 : Object)
 ], OperationVisitor$1.prototype, "request", void 0);
 tslib_1.__decorate([
     inversify.inject(OasFragmentMap),
@@ -892,7 +964,7 @@ FileSystem$1 = tslib_1.__decorate([
 ], FileSystem$1);
 var FileSystem$2 = FileSystem$1;
 
-var _a;
+var _a$1;
 var _b;
 var _c;
 var _d;
@@ -1032,7 +1104,7 @@ let Factory$1 = class Factory$$1 extends Tapable$2 {
 };
 tslib_1.__decorate([
     inversify.inject(OasDocument),
-    tslib_1.__metadata("design:type", typeof (_a = typeof OasDocument$2 !== "undefined" && OasDocument$2) === "function" ? _a : Object)
+    tslib_1.__metadata("design:type", typeof (_a$1 = typeof OasDocument$2 !== "undefined" && OasDocument$2) === "function" ? _a$1 : Object)
 ], Factory$1.prototype, "oasDocument", void 0);
 tslib_1.__decorate([
     inversify.inject(OperationVisitor),
@@ -1166,7 +1238,7 @@ ParameterUtils$1 = tslib_1.__decorate([
 ], ParameterUtils$1);
 var ParameterUtils$2 = ParameterUtils$1;
 
-var _a$7;
+var _a$8;
 let DefinitionFragment$1 = class DefinitionFragment$$1 extends OasFragment$2 {
     constructor() {
         super(...arguments);
@@ -1185,7 +1257,7 @@ let DefinitionFragment$1 = class DefinitionFragment$$1 extends OasFragment$2 {
 };
 tslib_1.__decorate([
     inversify.inject(IdentifierUtils),
-    tslib_1.__metadata("design:type", typeof (_a$7 = typeof IdentifierUtils$2 !== "undefined" && IdentifierUtils$2) === "function" ? _a$7 : Object)
+    tslib_1.__metadata("design:type", typeof (_a$8 = typeof IdentifierUtils$2 !== "undefined" && IdentifierUtils$2) === "function" ? _a$8 : Object)
 ], DefinitionFragment$1.prototype, "identifierUtils", void 0);
 DefinitionFragment$1 = tslib_1.__decorate([
     inversify.injectable()
@@ -1235,7 +1307,7 @@ OperationFragment$1 = tslib_1.__decorate([
 ], OperationFragment$1);
 var OperationFragment$2 = OperationFragment$1;
 
-var _a$8;
+var _a$9;
 let OperationRequestFragment$1 = class OperationRequestFragment$$1 extends OperationFragment$2 {
     constructor() {
         super(...arguments);
@@ -1266,7 +1338,7 @@ let OperationRequestFragment$1 = class OperationRequestFragment$$1 extends Opera
 };
 tslib_1.__decorate([
     inversify.inject(ParameterUtils),
-    tslib_1.__metadata("design:type", typeof (_a$8 = typeof ParameterUtils$2 !== "undefined" && ParameterUtils$2) === "function" ? _a$8 : Object)
+    tslib_1.__metadata("design:type", typeof (_a$9 = typeof ParameterUtils$2 !== "undefined" && ParameterUtils$2) === "function" ? _a$9 : Object)
 ], OperationRequestFragment$1.prototype, "parameterUtils", void 0);
 OperationRequestFragment$1 = tslib_1.__decorate([
     inversify.injectable()
@@ -1304,58 +1376,6 @@ OperationResponseFragment$1 = tslib_1.__decorate([
     inversify.injectable()
 ], OperationResponseFragment$1);
 var OperationResponseFragment$2 = OperationResponseFragment$1;
-
-let Network$1 = class Network {
-    downloadJSON(url) {
-        return tslib_1.__awaiter(this, void 0, void 0, function* () {
-            return this.download(url);
-        });
-    }
-    downloadYAML(url) {
-        return tslib_1.__awaiter(this, void 0, void 0, function* () {
-            return YAML.parse(yield this.download(url));
-        });
-    }
-    download(url) {
-        return axios.get(url).then(result => result.data);
-    }
-};
-Network$1 = tslib_1.__decorate([
-    inversify.injectable()
-], Network$1);
-var Network$2 = Network$1;
-
-let Timer$1 = class Timer {
-    constructor() {
-        this.records = new Map();
-    }
-    start(id) {
-        this.records.set(id, {
-            id,
-            startTimestamp: Date.now(),
-            endTimestamp: 0,
-        });
-    }
-    end(id) {
-        if (!this.records.has(id)) {
-            return;
-        }
-        this.records.get(id).endTimestamp = Date.now();
-    }
-    usage(id) {
-        if (!this.records.has(id)) {
-            return 0;
-        }
-        const { startTimestamp, endTimestamp, } = this.records.get(id);
-        return endTimestamp
-            ? endTimestamp - startTimestamp
-            : 0;
-    }
-};
-Timer$1 = tslib_1.__decorate([
-    inversify.injectable()
-], Timer$1);
-var Timer$2 = Timer$1;
 
 let EnhanceTypeNamePlugin$1 = class EnhanceTypeNamePlugin {
     constructor() {
@@ -1455,12 +1475,65 @@ FixRefPlugin$1 = tslib_1.__decorate([
 ], FixRefPlugin$1);
 var FixRefPlugin$2 = FixRefPlugin$1;
 
+let Network$1 = class Network {
+    downloadJSON(url) {
+        return tslib_1.__awaiter(this, void 0, void 0, function* () {
+            return this.download(url);
+        });
+    }
+    downloadYAML(url) {
+        return tslib_1.__awaiter(this, void 0, void 0, function* () {
+            return YAML.parse(yield this.download(url));
+        });
+    }
+    download(url) {
+        return axios.get(url).then(result => result.data);
+    }
+};
+Network$1 = tslib_1.__decorate([
+    inversify.injectable()
+], Network$1);
+var Network$2 = Network$1;
+
+let Timer$1 = class Timer {
+    constructor() {
+        this.records = new Map();
+    }
+    start(id) {
+        this.records.set(id, {
+            id,
+            startTimestamp: Date.now(),
+            endTimestamp: 0,
+        });
+    }
+    end(id) {
+        if (!this.records.has(id)) {
+            return;
+        }
+        this.records.get(id).endTimestamp = Date.now();
+    }
+    usage(id) {
+        if (!this.records.has(id)) {
+            return 0;
+        }
+        const { startTimestamp, endTimestamp, } = this.records.get(id);
+        return endTimestamp
+            ? endTimestamp - startTimestamp
+            : 0;
+    }
+};
+Timer$1 = tslib_1.__decorate([
+    inversify.injectable()
+], Timer$1);
+var Timer$2 = Timer$1;
+
 const container = new inversify.Container({
     skipBaseClassChecks: true,
 });
 inversify.decorate(inversify.injectable(), Map);
 // libs
 container.bind(Tapable$1).to(Tapable$2);
+container.bind(Spinner).to(Spinner$2);
 container.bind(PrettierUtils).toConstantValue(new PrettierUtils$2());
 container.bind(IdentifierUtils).toConstantValue(new IdentifierUtils$2());
 container.bind(JsonSchemaUtils).toConstantValue(new JsonSchemaUtils$2());
@@ -1486,6 +1559,7 @@ container.bind(JsGenerator).to(JsGenerator$2);
 // built-in plugins
 container.bind(EnhanceTypeNamePlugin).to(EnhanceTypeNamePlugin$2);
 container.bind(FixRefPlugin).to(FixRefPlugin$2);
+container.bind(LogPlugin).to(LogPlugin$2);
 // maps
 container.bind(HookMap).to(Map);
 container.bind(OasFragmentMap).to(Map);

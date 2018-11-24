@@ -1,4 +1,5 @@
 import CLI from '@/core/CLI';
+import LogPlugin from '@/core/plugins/LogPlugin';
 import Factory from '@/core/Factory';
 import JsGenerator from '@/core/generators/JsGenerator';
 import TsGenerator from '@/core/generators/TsGenerator';
@@ -16,6 +17,9 @@ import OperationResponseFragment from '@/core/oas-fragments/OperationResponseFra
 import DefinitionVisitor from '@/core/oas-visitors/DefinitionVisitor';
 import OperationVisitor from '@/core/oas-visitors/OperationVisitor';
 import { DocumentType } from '@/core/OasFragment';
+import EnhanceTypeNamePlugin from '@/core/plugins/EnhanceTypeNamePlugin';
+import FixRefPlugin from '@/core/plugins/FixRefPlugin';
+import Spinner from '@/core/Spinner';
 import * as identifier from '@/identifier';
 import FileSystem from '@/util/FileSystem';
 import Network from '@/util/Network';
@@ -25,8 +29,6 @@ import { Container, decorate, injectable } from 'inversify';
 import { AST } from 'json-schema-to-typescript/dist/src/types/AST';
 import { Oas20CompositeVisitor, OasLibraryUtils } from 'oai-ts-core';
 import { HookMap } from 'tapable';
-import EnhanceTypeNamePlugin from './core/plugins/EnhanceTypeNamePlugin';
-import FixRefPlugin from './core/plugins/FixRefPlugin';
 
 const container = new Container({
   skipBaseClassChecks: true,
@@ -36,6 +38,7 @@ decorate(injectable(), Map);
 
 // libs
 container.bind<Tapable>(identifier.Tapable).to(Tapable);
+container.bind<Spinner>(identifier.Spinner).to(Spinner);
 container.bind<PrettierUtils>(identifier.PrettierUtils).toConstantValue(new PrettierUtils());
 container.bind<IdentifierUtils>(identifier.IdentifierUtils).toConstantValue(new IdentifierUtils());
 container.bind<JsonSchemaUtils>(identifier.JsonSchemaUtils).toConstantValue(new JsonSchemaUtils());
@@ -66,6 +69,7 @@ container.bind<JsGenerator>(identifier.JsGenerator).to(JsGenerator);
 // built-in plugins
 container.bind<EnhanceTypeNamePlugin>(identifier.EnhanceTypeNamePlugin).to(EnhanceTypeNamePlugin);
 container.bind<FixRefPlugin>(identifier.FixRefPlugin).to(FixRefPlugin);
+container.bind<LogPlugin>(identifier.LogPlugin).to(LogPlugin);
 
 // maps
 container.bind<Map<string, HookMap>>(identifier.HookMap).to(Map);

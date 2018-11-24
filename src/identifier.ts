@@ -2,6 +2,7 @@ export const RequestSchemaComposer = Symbol('RequestSchemaComposer');
 
 // libs
 export const Tapable = Symbol('Tapable');
+export const Spinner = Symbol('Spinner');
 export const PrettierUtils = Symbol('PrettierUtils');
 export const IdentifierUtils = Symbol('IdentifierUtils');
 export const JsonSchemaUtils = Symbol('JsonSchemaUtils');
@@ -33,6 +34,7 @@ export const JsGenerator = Symbol('JsGenerator');
 // built-in plugins
 export const EnhanceTypeNamePlugin = Symbol('EnhanceTypeNamePlugin');
 export const FixRefPlugin = Symbol('FixRefPlugin');
+export const LogPlugin = Symbol('LogPlugin');
 
 // maps
 export const HookMap = Symbol('HookMap');

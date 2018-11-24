@@ -1,6 +1,7 @@
 import { FactoryInputOptions, FactoryOutputOptions } from '@/core/Factory';
 import EnhanceTypeNamePlugin from '@/core/plugins/EnhanceTypeNamePlugin';
 import FixRefPlugin from '@/core/plugins/FixRefPlugin';
+import LogPlugin from '@/core/plugins/LogPlugin';
 import * as identifier from '@/identifier';
 import container from '@/inversify.config';
 import { injectable } from 'inversify';
@@ -177,6 +178,7 @@ class CLI {
 
   public get plugins() {
     return [
+      container.get<LogPlugin>(identifier.LogPlugin),
       container.get<EnhanceTypeNamePlugin>(identifier.EnhanceTypeNamePlugin),
       container.get<FixRefPlugin>(identifier.FixRefPlugin),
     ];
