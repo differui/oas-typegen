@@ -17,13 +17,13 @@ test('should read file', async () => {
 });
 
 test('should read json file', async () => {
-  const { name } = await fileSystem.readJSON('test.json');
+  const { name } = await fileSystem.readJson('test.json');
 
   expect(name).toBe('json');
 });
 
 test('should read yaml file', async () => {
-  const { name } = await fileSystem.readYAML('test.yaml');
+  const { name } = await fileSystem.readYaml('test.yaml');
 
   expect(name).toBe('yaml');
 });

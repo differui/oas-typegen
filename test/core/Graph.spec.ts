@@ -7,7 +7,7 @@ const factory = container.get<Factory>(identifier.Factory);
 const fileSystem = container.get<FileSystem>(identifier.FileSystem);
 
 test('basic', async () => {
-  const document = await fileSystem.readJSON('test/fixtures/pet-store.json');
+  const document = await fileSystem.readJson('test/fixtures/pet-store.json');
 
   await factory.build(document as any);
 

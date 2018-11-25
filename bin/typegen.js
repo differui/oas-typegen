@@ -6,9 +6,6 @@ function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'defau
 var tslib_1 = require('tslib');
 require('reflect-metadata');
 var inversify = require('inversify');
-var meow = _interopDefault(require('meow'));
-var path = require('path');
-var ora = _interopDefault(require('ora'));
 var tapable = require('tapable');
 var jsonSchemaToTypescript = require('json-schema-to-typescript');
 var jsonSchemaToTypescript_dist_src_types_AST = require('json-schema-to-typescript/dist/src/types/AST');
@@ -25,9 +22,13 @@ var prettier = require('prettier');
 var fs = require('fs');
 var util = require('util');
 var YAML = _interopDefault(require('yaml'));
+var meow = _interopDefault(require('meow'));
+var path = require('path');
 var openapiJsonschemaParameters = require('openapi-jsonschema-parameters');
 var md5 = _interopDefault(require('md5'));
+var ora = _interopDefault(require('ora'));
 var axios = _interopDefault(require('axios'));
+var resolve$1 = require('resolve');
 
 // libs
 const Tapable$1 = Symbol('Tapable');
@@ -68,231 +69,7 @@ const AstQueue = Symbol('AstQueue');
 const Timer = Symbol('Timer');
 const Network = Symbol('Network');
 const FileSystem = Symbol('FileSystem');
-
-const NAME = 'typegen';
-const HELP_MESSAGE = `
-  Usage
-
-  $ ${NAME} --input <input> --output <output>
-
-  Options:
-
-    --input, -i    (required) Path to OpenAPI document in local file system or
-                   url on lines.
-    --output, -o   The output path and file for generated assets.
-    --dir, -d      The output directory for generated assets. Use current dire-
-                   tory by default.
-
-    --name, -n     Specifies the name of your swagger document.
-    --format, -f   Type of output assets (cjs, es).Use "es" by default.
-    --language, -l Choice one output language in js ts and dts
-                   > js: (default) create a .js file and comment with JSDoc
-                   > ts: create a .ts file and declare types as interfaces
-                   > dts: create a .js file and declare types in a .d.ts
-    --plugin, -p   Load the plugin from local node_modules.
-
-    --helper       Path or url for customize ajax helper.
-    --helper-name  Name for ajax helper. Use "dispatchRequest" by default.
-
-    --intro        Content to insert at top of generated type file.
-    --outro        Content to insert at bottom of generated type file.
-
-    --slice, -s    Prevent output from being displayed in stdout.
-    --version, -v  Print current version number.
-    --help, -h     Print this message.
-
-  Examples:
-
-  $ ${NAME} --input ./swagger.json --output gateway.js --language js
-  $ ${NAME} --input http://petstore.swagger.io/v2/swagger.json --output petsto-
-                    re.js`;
-let CLI$1 = class CLI$$1 {
-    constructor() {
-        this.cli = meow(HELP_MESSAGE, {
-            autoHelp: true,
-            autoVersion: true,
-            flags: {
-                input: {
-                    type: 'string',
-                    alias: 'i',
-                },
-                output: {
-                    type: 'string',
-                    alias: 'o',
-                },
-                dir: {
-                    type: 'string',
-                    alias: 'd',
-                    default: '',
-                },
-                name: {
-                    type: 'string',
-                    alias: 'n',
-                    default: 'type-document',
-                },
-                format: {
-                    type: 'string',
-                    default: 'es',
-                    alias: 'f',
-                },
-                language: {
-                    type: 'string',
-                    default: 'js',
-                    alias: 'l',
-                },
-                plugin: {
-                    type: 'string',
-                    alias: 'p',
-                },
-                helper: {
-                    type: 'string',
-                    default: '',
-                },
-                helperName: {
-                    type: 'string',
-                    default: 'dispatchRequest',
-                },
-                intro: {
-                    type: 'string',
-                    default: '',
-                },
-                outro: {
-                    type: 'string',
-                    default: '',
-                },
-                silent: {
-                    type: 'boolean',
-                    alias: 's',
-                },
-                version: {
-                    type: 'boolean',
-                    alias: 'v',
-                },
-                help: {
-                    type: 'boolean',
-                    alias: 'h',
-                },
-            },
-        });
-        const { name, dir, language, output, helper, helperName, } = this.cli.flags;
-        // rule: if provide 'dir' and omit 'output' then create output
-        if (!output && dir) {
-            this.cli.flags.output = path.resolve(dir, `${name}.${language.substr(-2)}`);
-        }
-        // rule: if omit 'helper' then use default helper name
-        if (!helper) {
-            this.cli.flags.helper = `./${helperName}`;
-        }
-    }
-    get inputOptions() {
-        const { name, input, } = this.cli.flags;
-        const isUrl = /^[http|https]/.test(input);
-        return {
-            url: isUrl ? input : '',
-            path: isUrl ? '' : (input ? path.resolve(process.cwd(), input) : ''),
-            name,
-        };
-    }
-    get outputOptions() {
-        const { format: format$$1, language, output, intro, outro, silent, helper, helperName, } = this.cli.flags;
-        return {
-            path: output,
-            format: format$$1,
-            language,
-            intro,
-            outro,
-            silent,
-            helper,
-            helperName,
-        };
-    }
-    get plugins() {
-        return [
-            container.get(LogPlugin),
-            container.get(EnhanceTypeNamePlugin),
-            container.get(FixRefPlugin),
-        ];
-    }
-    showHelp() {
-        this.cli.showHelp();
-    }
-    showVersion() {
-        this.cli.showVersion();
-    }
-};
-CLI$1 = tslib_1.__decorate([
-    inversify.injectable(),
-    tslib_1.__metadata("design:paramtypes", [])
-], CLI$1);
-var CLI$2 = CLI$1;
-
-let Spinner$1 = class Spinner {
-    constructor() {
-        this.spinner = ora('Loading unicorns');
-    }
-    start(text) {
-        this.spinner.start(text);
-    }
-    stop() {
-        this.spinner.stop();
-    }
-    refresh(text) {
-        this.spinner.text = text;
-    }
-    succeed(text) {
-        this.spinner.succeed(text);
-    }
-    fail(text) {
-        this.spinner.fail(text);
-    }
-    warn(text) {
-        this.spinner.warn(text);
-    }
-    info(text) {
-        this.spinner.info(text);
-    }
-};
-Spinner$1 = tslib_1.__decorate([
-    inversify.injectable()
-], Spinner$1);
-var Spinner$2 = Spinner$1;
-
-var _a;
-let LogPlugin$1 = class LogPlugin$$1 {
-    constructor() {
-        this.name = 'LogPlugin';
-    }
-    apply(factory) {
-        factory.hooks.applyPlugins.tap(this.name, this.handleStart.bind(this, 'apply plugins'));
-        factory.hooks.options.tap(this.name, this.handleProcess.bind(this, 'loading options'));
-        factory.hooks.createDocument.tap(this.name, this.handleProcess.bind(this, 'creating oai document instance'));
-        factory.hooks.createDefinitionFragment.tap(this.name, definitionFragment => this.handleProcess(`creating definition fragment: ${definitionFragment.title}`));
-        factory.hooks.createRequestOperationFragment.tap(this.name, requestOperationFragment => this.handleProcess(`creating request operation fragment: ${requestOperationFragment.title}`));
-        factory.hooks.createResponseOperationFragment.tap(this.name, responseOperationFragment => this.handleProcess(`creating response operation fragment: ${responseOperationFragment.title}`));
-        factory.hooks.generate.tap(this.name, this.handleStop.bind(this, 'DONE!'));
-    }
-    handleProcess(text) {
-        this.spinner.refresh(text);
-    }
-    handleError() {
-        // todo
-    }
-    handleStart(text) {
-        this.spinner.start(text);
-    }
-    handleStop(text) {
-        this.spinner.refresh(text);
-        this.spinner.stop();
-    }
-};
-tslib_1.__decorate([
-    inversify.inject(Spinner),
-    tslib_1.__metadata("design:type", typeof (_a = typeof Spinner$2 !== "undefined" && Spinner$2) === "function" ? _a : Object)
-], LogPlugin$1.prototype, "spinner", void 0);
-LogPlugin$1 = tslib_1.__decorate([
-    inversify.injectable()
-], LogPlugin$1);
-var LogPlugin$2 = LogPlugin$1;
+const ModuleSystem = Symbol('ModuleSystem');
 
 let Generator = class Generator {
     constructor() {
@@ -945,17 +722,28 @@ let FileSystem$1 = class FileSystem {
             return (yield util.promisify(fs.readFile)(src, 'utf8')).toString();
         });
     }
+    readFileSync(src) {
+        return fs.readFileSync(src, 'utf8').toString();
+    }
     writeFile(dest, content) {
         return util.promisify(fs.writeFile)(dest, content, 'utf8');
     }
-    readJSON(src) {
+    readJson(src) {
         return tslib_1.__awaiter(this, void 0, void 0, function* () {
             return JSON.parse((yield this.readFile(src)));
         });
     }
-    readYAML(src) {
+    readJsonSync(src) {
+        return JSON.parse(this.readFileSync(src));
+    }
+    readYaml(src) {
         return tslib_1.__awaiter(this, void 0, void 0, function* () {
             return YAML.parse((yield this.readFile(src)));
+        });
+    }
+    readYamlSync(src) {
+        return tslib_1.__awaiter(this, void 0, void 0, function* () {
+            return YAML.parse(this.readFileSync(src));
         });
     }
 };
@@ -971,19 +759,13 @@ var _d;
 var _e;
 var _f;
 var _g;
-const DEFAULT_INPUT_OPTIONS = {
-    url: '',
-    path: '',
-    name: 'type-document',
-};
 const DEFAULT_OUTPUT_OPTIONS = {
     path: '',
     format: 'es',
     language: 'js',
     intro: '',
     outro: '',
-    silent: false,
-    helper: '',
+    helper: './dispatchRequest',
     helperName: 'dispatchRequest',
 };
 const DEFAULT_PRETTIER_OPTIONS = {
@@ -994,8 +776,9 @@ const DEFAULT_PRETTIER_OPTIONS = {
     bracketSpacing: false,
 };
 const DEFAULT_OPTIONS$1 = {
-    input: DEFAULT_INPUT_OPTIONS,
+    input: '',
     output: DEFAULT_OUTPUT_OPTIONS,
+    silent: false,
     plugins: [],
     prettier: DEFAULT_PRETTIER_OPTIONS,
 };
@@ -1063,6 +846,9 @@ let Factory$1 = class Factory$$1 extends Tapable$2 {
                     yield this.hooks.createGenerator.promise(this.jsGenerator, generateOptions);
                     code = yield this.jsGenerator.generate(fragments, generateOptions);
                     break;
+                case 'dts':
+                    // todo
+                    break;
                 default:
                     break;
             }
@@ -1079,10 +865,10 @@ let Factory$1 = class Factory$$1 extends Tapable$2 {
                 yield this.hooks.write.promise(mergedOptions, code);
                 this.fileSystem.writeFile(path$$1, code);
                 {
-                    this.fileSystem.writeFile(path$$1 + '.json', JSON.stringify(document, undefined, 2));
+                    this.fileSystem.writeFile(`${path$$1}.json`, JSON.stringify(document, undefined, 2));
                 }
             }
-            else if (!mergedOptions.output.silent) {
+            else if (!mergedOptions.silent) {
                 process.stdout.write(code);
             }
         });
@@ -1091,12 +877,12 @@ let Factory$1 = class Factory$$1 extends Tapable$2 {
         if (!options) {
             return DEFAULT_OPTIONS$1;
         }
-        const input = Object.assign({}, DEFAULT_INPUT_OPTIONS, options.input);
         const output = Object.assign({}, DEFAULT_OUTPUT_OPTIONS, options.output);
         const prettier$$1 = Object.assign({}, DEFAULT_PRETTIER_OPTIONS, options.prettier);
         return {
-            input,
+            input: options.input || '',
             output,
+            silent: options.silent || false,
             plugins: [],
             prettier: prettier$$1,
         };
@@ -1135,6 +921,212 @@ Factory$1 = tslib_1.__decorate([
     tslib_1.__metadata("design:paramtypes", [])
 ], Factory$1);
 var Factory$2 = Factory$1;
+
+var _a;
+
+
+const NAME = 'typegen';
+const HELP_MESSAGE = `
+  Usage
+
+  $ ${NAME} --input <input> --output <output>
+
+  Options:
+
+    --input, -i    (required) Path to OpenAPI document in local file system or
+                   url on lines.
+    --output, -o   The output path and file for generated assets.
+    --dir, -d      The output directory for generated assets. Use current dire-
+                   tory by default.
+
+    --name, -n     Specifies the name of your swagger document.
+    --config, -c   Use this config file(if argument is used but value is unspe-
+                   cified, defaults to typegen.json).
+    --format, -f   Type of output assets (cjs, es).Use "es" by default.
+    --language, -l Choice one output language in js ts and dts
+                   > js: (default) create a .js file and comment with JSDoc
+                   > ts: create a .ts file and declare types as interfaces
+                   > dts: create a .js file and declare types in a .d.ts
+    --plugin, -p   Load the plugin from local node_modules.
+
+    --helper       Path or url for customize ajax helper.
+    --helper-name  Name for ajax helper. Use "dispatchRequest" by default.
+
+    --intro        Content to insert at top of generated type file.
+    --outro        Content to insert at bottom of generated type file.
+
+    --serial, -e   Force build multi-documents one by one.
+    --silent, -s   Prevent output from being displayed in stdout.
+    --version, -v  Print current version number.
+    --help, -h     Print this message.
+
+  Examples:
+
+  $ ${NAME} --input ./swagger.json --output gateway.js --language js
+  $ ${NAME} --input http://petstore.swagger.io/v2/swagger.json --output petsto-
+                    re.js`;
+let CLI$1 = class CLI$$1 {
+    constructor() {
+        this.cli = meow(HELP_MESSAGE, {
+            autoHelp: true,
+            autoVersion: true,
+            flags: {
+                input: {
+                    type: 'string',
+                    alias: 'i',
+                },
+                output: {
+                    type: 'string',
+                    alias: 'o',
+                    default: '',
+                },
+                dir: {
+                    type: 'string',
+                    alias: 'd',
+                    default: '',
+                },
+                format: {
+                    type: 'string',
+                    alias: 'f',
+                    default: DEFAULT_OUTPUT_OPTIONS.format,
+                },
+                config: {
+                    type: 'string',
+                    alias: 'c',
+                },
+                language: {
+                    type: 'string',
+                    alias: 'l',
+                    default: DEFAULT_OUTPUT_OPTIONS.language,
+                },
+                helper: {
+                    type: 'string',
+                    default: DEFAULT_OUTPUT_OPTIONS.helper,
+                },
+                helperName: {
+                    type: 'string',
+                    default: DEFAULT_OUTPUT_OPTIONS.helperName,
+                },
+                intro: {
+                    type: 'string',
+                    default: DEFAULT_OUTPUT_OPTIONS.intro,
+                },
+                outro: {
+                    type: 'string',
+                    default: DEFAULT_OUTPUT_OPTIONS.outro,
+                },
+                serial: {
+                    type: 'boolean',
+                    alias: 'e',
+                    default: false,
+                },
+                silent: {
+                    type: 'boolean',
+                    alias: 's',
+                    default: false,
+                },
+                plugin: {
+                    type: 'string',
+                    alias: 'p',
+                },
+                version: {
+                    type: 'boolean',
+                    alias: 'v',
+                },
+                help: {
+                    type: 'boolean',
+                    alias: 'h',
+                },
+            },
+        });
+        // apply implicit rules
+        const { dir, file, language, output, helper, helperName, } = this.cli.flags;
+        const ext = language.substr(-2);
+        // rule: if provide 'dir' and omit 'output' then create output
+        if (!output && dir && file) {
+            this.cli.flags.output = path.resolve(dir, file.endsWith(`.${ext}`) ? file : `${file}.${ext}`);
+        }
+        // rule: if omit 'helper' then use default helper name
+        if (!helper && helperName) {
+            this.cli.flags.helper = `./${helperName}`;
+        }
+    }
+    get input() {
+        return this.cli.flags.input;
+    }
+    get output() {
+        const { format: format$$1, language, output, intro, outro, helper, helperName, } = this.cli.flags;
+        return {
+            path: output,
+            format: format$$1,
+            language,
+            intro,
+            outro,
+            helper,
+            helperName,
+        };
+    }
+    get cliOptions() {
+        const { input, serial, silent, plugin, } = this.cli.flags;
+        const plugins = (Array.isArray(plugin) ? plugin : (plugin ? [plugin] : []));
+        if (Array.isArray(this.input)) {
+            return this.input.map(singleInput => ({
+                input: singleInput,
+                output: this.output,
+                serial: serial,
+                silent: silent,
+                plugins,
+            }));
+        }
+        return [
+            {
+                input,
+                output: this.output,
+                serial: serial,
+                silent: silent,
+                plugins,
+            },
+        ];
+    }
+    get configOptions() {
+        if (typeof this.cli.flags.config === 'undefined') {
+            return [];
+        }
+        const config = this.cli.flags.config || './typegen.json';
+        try {
+            const options = this.fileSystem.readJsonSync(config.endsWith('.json') ? config : `${config}.json`);
+            if (!options) {
+                return [];
+            }
+            return (Array.isArray(options) ? options : [options]).reduce((expandOptions, currentOptions) => {
+                if (Array.isArray(currentOptions.input)) {
+                    return expandOptions.concat(currentOptions.input.map(input => (Object.assign({}, currentOptions, { input }))));
+                }
+                else {
+                    return expandOptions.concat(currentOptions);
+                }
+            }, []);
+        }
+        catch (err) {
+            return [];
+        }
+    }
+    showHelp() {
+        this.cli.showHelp();
+    }
+    showVersion() {
+        this.cli.showVersion();
+    }
+};
+tslib_1.__decorate([
+    inversify.inject(FileSystem),
+    tslib_1.__metadata("design:type", typeof (_a = typeof FileSystem$2 !== "undefined" && FileSystem$2) === "function" ? _a : Object)
+], CLI$1.prototype, "fileSystem", void 0);
+CLI$1 = tslib_1.__decorate([
+    inversify.injectable(),
+    tslib_1.__metadata("design:paramtypes", [])
+], CLI$1);
+var CLI$2 = CLI$1;
 
 /**
  * more:
@@ -1475,6 +1467,71 @@ FixRefPlugin$1 = tslib_1.__decorate([
 ], FixRefPlugin$1);
 var FixRefPlugin$2 = FixRefPlugin$1;
 
+let Spinner$1 = class Spinner {
+    constructor() {
+        this.spinner = ora('Loading unicorns');
+    }
+    start(text) {
+        this.spinner.start(text);
+    }
+    stop() {
+        this.spinner.stop();
+    }
+    refresh(text) {
+        this.spinner.text = text;
+    }
+    succeed(text) {
+        this.spinner.succeed(text);
+    }
+    fail(text) {
+        this.spinner.fail(text);
+    }
+    warn(text) {
+        this.spinner.warn(text);
+    }
+    info(text) {
+        this.spinner.info(text);
+    }
+};
+Spinner$1 = tslib_1.__decorate([
+    inversify.injectable()
+], Spinner$1);
+var Spinner$2 = Spinner$1;
+
+var _a$10;
+let LogPlugin$1 = class LogPlugin$$1 {
+    constructor() {
+        this.name = 'LogPlugin';
+    }
+    apply(factory) {
+        factory.hooks.applyPlugins.tap(this.name, this.handleStart.bind(this, 'apply plugins'));
+        factory.hooks.options.tap(this.name, this.handleProcess.bind(this, 'loading options'));
+        factory.hooks.createDocument.tap(this.name, this.handleProcess.bind(this, 'creating oai document instance'));
+        factory.hooks.createDefinitionFragment.tap(this.name, definitionFragment => this.handleProcess(`creating definition fragment: ${definitionFragment.title}`));
+        factory.hooks.createRequestOperationFragment.tap(this.name, requestOperationFragment => this.handleProcess(`creating request operation fragment: ${requestOperationFragment.title}`));
+        factory.hooks.createResponseOperationFragment.tap(this.name, responseOperationFragment => this.handleProcess(`creating response operation fragment: ${responseOperationFragment.title}`));
+        factory.hooks.generate.tap(this.name, this.handleStop.bind(this, 'generating code'));
+    }
+    handleProcess(text) {
+        this.spinner.refresh(text);
+    }
+    handleStart(text) {
+        this.spinner.start(text);
+    }
+    handleStop(text) {
+        this.spinner.refresh(text);
+        this.spinner.stop();
+    }
+};
+tslib_1.__decorate([
+    inversify.inject(Spinner),
+    tslib_1.__metadata("design:type", typeof (_a$10 = typeof Spinner$2 !== "undefined" && Spinner$2) === "function" ? _a$10 : Object)
+], LogPlugin$1.prototype, "spinner", void 0);
+LogPlugin$1 = tslib_1.__decorate([
+    inversify.injectable()
+], LogPlugin$1);
+var LogPlugin$2 = LogPlugin$1;
+
 let Network$1 = class Network {
     downloadJSON(url) {
         return tslib_1.__awaiter(this, void 0, void 0, function* () {
@@ -1527,6 +1584,43 @@ Timer$1 = tslib_1.__decorate([
 ], Timer$1);
 var Timer$2 = Timer$1;
 
+let ModuleSystem$1 = class ModuleSystem {
+    constructor() {
+        this.loadingModules = new Set();
+    }
+    resolve(name, dirname = process.cwd()) {
+        try {
+            const pathname = resolve$1.sync(name, {
+                basedir: dirname,
+            });
+            return {
+                name,
+                pathname,
+                module: this.require(pathname),
+            };
+        }
+        catch (err) {
+            throw new Error(`Plugin ${name} not found relative to ${dirname}`);
+        }
+    }
+    require(name) {
+        if (this.loadingModules.has(name)) {
+            throw new Error('dependency cycle detected');
+        }
+        try {
+            this.loadingModules.add(name);
+            return require(name);
+        }
+        finally {
+            this.loadingModules.delete(name);
+        }
+    }
+};
+ModuleSystem$1 = tslib_1.__decorate([
+    inversify.injectable()
+], ModuleSystem$1);
+var ModuleSystem$2 = ModuleSystem$1;
+
 const container = new inversify.Container({
     skipBaseClassChecks: true,
 });
@@ -1569,18 +1663,36 @@ container.bind(AstQueue).to(Queue$1);
 container.bind(Timer).to(Timer$2);
 container.bind(Network).to(Network$2);
 container.bind(FileSystem).to(FileSystem$2);
+container.bind(ModuleSystem).to(ModuleSystem$2);
 
 const factory = container.get(Factory);
 const network = container.get(Network);
 const fileSystem = container.get(FileSystem);
+const moduleSystem = container.get(ModuleSystem);
 const cli = container.get(CLI);
-const { url, path: path$1, } = cli.inputOptions;
-function run() {
+function build(options) {
     return tslib_1.__awaiter(this, void 0, void 0, function* () {
-        if (!url && !path$1) {
-            cli.showHelp();
-            return;
-        }
+        const { input, output, silent, plugins, } = options;
+        const builtInPlugins = [
+            container.get(LogPlugin),
+            container.get(EnhanceTypeNamePlugin),
+            container.get(FixRefPlugin),
+        ];
+        const externalPlugins = plugins.map(pluginName => {
+            const normalizedPluginName = /^(?:(?:typegen-plugin-)|\.|\/)/i.test(pluginName)
+                ? pluginName
+                : `typegen-plugin-${pluginName.toLowerCase()}`;
+            const { name, pathname, module: ModuleFactory, } = moduleSystem.resolve(normalizedPluginName);
+            if (typeof ModuleFactory === 'function') {
+                return new ModuleFactory();
+            }
+            if (typeof ModuleFactory.apply === 'function') {
+                return ModuleFactory;
+            }
+            throw new Error(`${name} from ${pathname} is not a valid plugin`);
+        });
+        const url = /^(?:http|https)/i.test(input) ? input : '';
+        const path$$1 = url ? '' : input;
         let document;
         if (url) {
             if (url.endsWith('.yaml')) {
@@ -1592,16 +1704,35 @@ function run() {
         }
         else {
             if (url.endsWith('.yaml')) {
-                document = yield fileSystem.readYAML(path$1);
+                document = yield fileSystem.readYaml(path$$1);
             }
             else {
-                document = yield fileSystem.readJSON(path$1);
+                document = yield fileSystem.readJson(path$$1);
             }
         }
-        factory.build(document, cli.plugins, {
-            input: cli.inputOptions,
-            output: cli.outputOptions,
+        factory.build(document, builtInPlugins.concat(externalPlugins), {
+            input,
+            output,
+            silent,
         });
+    });
+}
+function run() {
+    return tslib_1.__awaiter(this, void 0, void 0, function* () {
+        const { cliOptions, configOptions, } = cli;
+        const serialOptions = cliOptions.concat(configOptions).filter(options => options.serial && options.input);
+        const parallelOptions = cliOptions.concat(configOptions).filter(options => !options.serial && options.input);
+        if (serialOptions.length) {
+            for (const options of serialOptions) {
+                yield build(options);
+            }
+        }
+        if (parallelOptions.length) {
+            yield Promise.all(parallelOptions.map(options => build(options)));
+        }
+        if (!serialOptions.length && !parallelOptions.length) {
+            cli.showHelp();
+        }
     });
 }
 run();

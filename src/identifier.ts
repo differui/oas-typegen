@@ -47,3 +47,4 @@ export const AstQueue = Symbol('AstQueue');
 export const Timer = Symbol('Timer');
 export const Network = Symbol('Network');
 export const FileSystem = Symbol('FileSystem');
+export const ModuleSystem = Symbol('ModuleSystem');

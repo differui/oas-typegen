@@ -1,12 +1,51 @@
-import { FactoryInputOptions, FactoryOutputOptions } from '@/core/Factory';
-import EnhanceTypeNamePlugin from '@/core/plugins/EnhanceTypeNamePlugin';
-import FixRefPlugin from '@/core/plugins/FixRefPlugin';
-import LogPlugin from '@/core/plugins/LogPlugin';
+import { DEFAULT_OUTPUT_OPTIONS } from '@/core/Factory';
 import * as identifier from '@/identifier';
-import container from '@/inversify.config';
-import { injectable } from 'inversify';
+import FileSystem from '@/util/FileSystem';
+import { inject, injectable } from 'inversify';
 import meow from 'meow';
 import { resolve as resolvePath } from 'path';
+
+export interface ConfigOutputOptions {
+  dir?: string;
+  file?: string;
+  path?: string;
+  format?: 'es'|'cjs';
+  language?: 'js'|'ts'|'dts';
+  intro?: string;
+  outro?: string;
+  helper?: string;
+  helperName?: string;
+}
+
+export interface ConfigOptions {
+  input: string|Array<string>;
+  output: ConfigOutputOptions;
+  serial?: boolean;
+  silent?: boolean;
+  plugins?: Array<string>;
+}
+
+export type ConfigOptionsRequired = typeof DEFAULT_CONFIG_OPTIONS;
+
+export const DEFAULT_CONFIG_OUTPUT_OPTIONS: Required<ConfigOutputOptions> = {
+  dir: '',
+  file: '',
+  path: '',
+  format: DEFAULT_OUTPUT_OPTIONS.format,
+  language: DEFAULT_OUTPUT_OPTIONS.language,
+  intro: DEFAULT_OUTPUT_OPTIONS.intro,
+  outro: DEFAULT_OUTPUT_OPTIONS.outro,
+  helper: DEFAULT_OUTPUT_OPTIONS.helper,
+  helperName: DEFAULT_OUTPUT_OPTIONS.helperName,
+};
+
+export const DEFAULT_CONFIG_OPTIONS = {
+  input: '',
+  output: DEFAULT_CONFIG_OUTPUT_OPTIONS,
+  serial: false,
+  silent: false,
+  plugins: [] as Array<string>,
+};
 
 const NAME = 'typegen';
 const HELP_MESSAGE = `
@@ -23,6 +62,8 @@ const HELP_MESSAGE = `
                    tory by default.
 
     --name, -n     Specifies the name of your swagger document.
+    --config, -c   Use this config file(if argument is used but value is unspe-
+                   cified, defaults to typegen.json).
     --format, -f   Type of output assets (cjs, es).Use "es" by default.
     --language, -l Choice one output language in js ts and dts
                    > js: (default) create a .js file and comment with JSDoc
@@ -36,7 +77,8 @@ const HELP_MESSAGE = `
     --intro        Content to insert at top of generated type file.
     --outro        Content to insert at bottom of generated type file.
 
-    --slice, -s    Prevent output from being displayed in stdout.
+    --serial, -e   Force build multi-documents one by one.
+    --silent, -s   Prevent output from being displayed in stdout.
     --version, -v  Print current version number.
     --help, -h     Print this message.
 
@@ -48,6 +90,7 @@ const HELP_MESSAGE = `
 
 @injectable()
 class CLI {
+  @inject(identifier.FileSystem) private fileSystem: FileSystem;
   private cli: meow.Result;
 
   constructor() {
@@ -62,50 +105,56 @@ class CLI {
         output: {
           type: 'string',
           alias: 'o',
+          default: '',
         },
         dir: {
           type: 'string',
           alias: 'd',
           default: '',
         },
-        name: {
-          type: 'string',
-          alias: 'n',
-          default: 'type-document',
-        },
         format: {
           type: 'string',
-          default: 'es',
           alias: 'f',
+          default: DEFAULT_OUTPUT_OPTIONS.format,
+        },
+        config: {
+          type: 'string',
+          alias: 'c',
         },
         language: {
           type: 'string',
-          default: 'js',
           alias: 'l',
-        },
-        plugin: {
-          type: 'string',
-          alias: 'p',
+          default: DEFAULT_OUTPUT_OPTIONS.language,
         },
         helper: {
           type: 'string',
-          default: '',
+          default: DEFAULT_OUTPUT_OPTIONS.helper,
         },
         helperName: {
           type: 'string',
-          default: 'dispatchRequest',
+          default: DEFAULT_OUTPUT_OPTIONS.helperName,
         },
         intro: {
           type: 'string',
-          default: '',
+          default: DEFAULT_OUTPUT_OPTIONS.intro,
         },
         outro: {
           type: 'string',
-          default: '',
+          default: DEFAULT_OUTPUT_OPTIONS.outro,
+        },
+        serial: {
+          type: 'boolean',
+          alias: 'e',
+          default: false,
         },
         silent: {
           type: 'boolean',
           alias: 's',
+          default: false,
+        },
+        plugin: {
+          type: 'string',
+          alias: 'p',
         },
         version: {
           type: 'boolean',
@@ -118,48 +167,39 @@ class CLI {
       },
     });
 
+    // apply implicit rules
     const {
-      name,
       dir,
+      file,
       language,
       output,
       helper,
       helperName,
     } = this.cli.flags;
+    const ext = language.substr(-2);
 
     // rule: if provide 'dir' and omit 'output' then create output
-    if (!output && dir) {
-      this.cli.flags.output = resolvePath(dir, `${name}.${language.substr(-2)}`);
+    if (!output && dir && file) {
+      this.cli.flags.output = resolvePath(dir, file.endsWith(`.${ext}`) ? file : `${file}.${ext}`);
     }
 
     // rule: if omit 'helper' then use default helper name
-    if (!helper) {
+    if (!helper && helperName) {
       this.cli.flags.helper = `./${helperName}`;
     }
   }
 
-  public get inputOptions() {
-    const {
-      name,
-      input,
-    } = this.cli.flags;
-    const isUrl = /^[http|https]/.test(input);
-
-    return {
-      url: isUrl ? input : '',
-      path: isUrl ? '' : (input ? resolvePath(process.cwd(), input) : ''),
-      name,
-    } as Required<FactoryInputOptions>;
+  public get input(): string {
+    return this.cli.flags.input;
   }
 
-  public get outputOptions() {
+  public get output() {
     const {
       format,
       language,
       output,
       intro,
       outro,
-      silent,
       helper,
       helperName,
     } = this.cli.flags;
@@ -170,18 +210,66 @@ class CLI {
       language,
       intro,
       outro,
-      silent,
       helper,
       helperName,
-    } as Required<FactoryOutputOptions>;
+    } as Required<ConfigOutputOptions>;
   }
 
-  public get plugins() {
+  public get cliOptions(): Array<ConfigOptionsRequired> {
+    const {
+      input,
+      serial,
+      silent,
+      plugin,
+    } = this.cli.flags;
+    const plugins: Array<string> = (Array.isArray(plugin) ? plugin : (plugin ? [plugin] : []));
+
+    if (Array.isArray(this.input)) {
+      return this.input.map(singleInput => ({
+        input: singleInput,
+        output: this.output,
+        serial: serial as boolean,
+        silent: silent as boolean,
+        plugins,
+      }));
+    }
     return [
-      container.get<LogPlugin>(identifier.LogPlugin),
-      container.get<EnhanceTypeNamePlugin>(identifier.EnhanceTypeNamePlugin),
-      container.get<FixRefPlugin>(identifier.FixRefPlugin),
+      {
+        input,
+        output: this.output,
+        serial: serial as boolean,
+        silent: silent as boolean,
+        plugins,
+      },
     ];
+  }
+
+  public get configOptions(): Array<ConfigOptionsRequired> {
+    if (typeof this.cli.flags.config === 'undefined') {
+      return [];
+    }
+
+    const config = this.cli.flags.config || './typegen.json';
+
+    try {
+      const options: ConfigOptionsRequired|Array<ConfigOptionsRequired> = this.fileSystem.readJsonSync(config.endsWith('.json') ? config : `${config}.json`);
+
+      if (!options) {
+        return [];
+      }
+      return (Array.isArray(options) ? options : [options]).reduce((expandOptions, currentOptions) => {
+        if (Array.isArray(currentOptions.input)) {
+          return expandOptions.concat(currentOptions.input.map(input => ({
+            ...currentOptions,
+            input,
+          })));
+        } else {
+          return expandOptions.concat(currentOptions);
+        }
+      }, [] as Array<ConfigOptionsRequired>);
+    } catch (err) {
+      return [];
+    }
   }
 
   public showHelp() {

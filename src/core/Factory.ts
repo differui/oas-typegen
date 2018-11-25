@@ -17,35 +17,26 @@ import { OpenAPIV2 } from 'openapi-types';
 import { Options as PrettierOptions } from 'prettier';
 import { AsyncParallelHook, AsyncSeriesBailHook, AsyncSeriesHook } from 'tapable';
 
-export interface FactoryInputOptions {
-  url?: string;
-  path?: string;
-  name?: string;
-}
-
 export interface FactoryOutputOptions {
   path?: string;
-  format?: 'cjs'|'es';
+  format?: 'es'|'cjs';
   language?: 'ts'|'js'|'dts';
   intro?: string;
   outro?: string;
-  silent?: boolean;
   helper?: string;
   helperName?: string;
 }
 
 export interface FactoryOptions {
-  input?: FactoryInputOptions;
+  input?: string;
   output?: FactoryOutputOptions;
+  silent?: boolean;
+  serial?: boolean;
   plugins?: Array<Plugin>;
   prettier?: PrettierOptions;
 }
 
-export const DEFAULT_INPUT_OPTIONS: Required<FactoryInputOptions> = {
-  url: '',
-  path: '',
-  name: 'type-document',
-};
+export type FactoryOptionsRequired = typeof DEFAULT_OPTIONS;
 
 export const DEFAULT_OUTPUT_OPTIONS: Required<FactoryOutputOptions> = {
   path: '',
@@ -53,8 +44,7 @@ export const DEFAULT_OUTPUT_OPTIONS: Required<FactoryOutputOptions> = {
   language: 'js',
   intro: '',
   outro: '',
-  silent: false,
-  helper: '',
+  helper: './dispatchRequest',
   helperName: 'dispatchRequest',
 };
 
@@ -67,9 +57,10 @@ export const DEFAULT_PRETTIER_OPTIONS: PrettierOptions = {
 };
 
 export const DEFAULT_OPTIONS = {
-  input: DEFAULT_INPUT_OPTIONS as Required<FactoryInputOptions>,
+  input: '',
   output: DEFAULT_OUTPUT_OPTIONS as Required<FactoryOutputOptions>,
-  plugins: [],
+  silent: false,
+  plugins: [] as Array<Plugin>,
   prettier: DEFAULT_PRETTIER_OPTIONS,
 };
 
@@ -78,14 +69,14 @@ class Factory extends Tapable {
   public hooks = {
     applyPlugins: new AsyncSeriesHook<Array<Plugin>>(['plugins']),
     options: new AsyncParallelHook<FactoryOptions>(['options']),
-    mergeOptions: new AsyncParallelHook<typeof DEFAULT_OPTIONS>(['mergedOptions']),
+    mergeOptions: new AsyncParallelHook<FactoryOptionsRequired>(['mergedOptions']),
     createDocument: new AsyncSeriesHook<OasDocument>(['document']),
     createDefinitionFragment: new AsyncSeriesHook<DefinitionFragment>(['definitionFragment']),
     createRequestOperationFragment: new AsyncSeriesHook<OperationRequestFragment>(['operationRequestFragment']),
     createResponseOperationFragment: new AsyncSeriesHook<OperationResponseFragment>(['operationResponseFragment']),
     createGenerator: new AsyncSeriesHook<JsGenerator|TsGenerator, GeneratorOptions>(['code', 'options']),
     generate: new AsyncSeriesBailHook<string>(['string']),
-    write: new AsyncParallelHook<typeof DEFAULT_OPTIONS>(['options', 'code']),
+    write: new AsyncParallelHook<FactoryOptionsRequired>(['options', 'code']),
   };
 
   @inject(identifier.OasDocument) private oasDocument: OasDocument;
@@ -175,21 +166,17 @@ class Factory extends Tapable {
       await this.hooks.write.promise(mergedOptions, code);
       this.fileSystem.writeFile(path, code);
       if (process.env.NODE_ENV === 'development') {
-        this.fileSystem.writeFile(path + '.json', JSON.stringify(document, undefined, 2));
+        this.fileSystem.writeFile(`${path}.json`, JSON.stringify(document, undefined, 2));
       }
-    } else if (!mergedOptions.output.silent) {
+    } else if (!mergedOptions.silent) {
       process.stdout.write(code);
     }
   }
 
-  private mergeOptions(options?: FactoryOptions) {
+  private mergeOptions(options?: FactoryOptions): FactoryOptionsRequired {
     if (!options) {
       return DEFAULT_OPTIONS;
     }
-    const input: Required<FactoryInputOptions> = {
-      ...DEFAULT_INPUT_OPTIONS,
-      ...options.input,
-    };
     const output: Required<FactoryOutputOptions> = {
       ...DEFAULT_OUTPUT_OPTIONS,
       ...options.output,
@@ -200,11 +187,12 @@ class Factory extends Tapable {
     };
 
     return {
-      input,
+      input: options.input || '',
       output,
+      silent: options.silent || false,
       plugins: [] as Array<Plugin>,
       prettier,
-    } as typeof DEFAULT_OPTIONS;
+    };
   }
 }
 

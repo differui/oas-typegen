@@ -1,5 +1,4 @@
 import CLI from '@/core/CLI';
-import LogPlugin from '@/core/plugins/LogPlugin';
 import Factory from '@/core/Factory';
 import JsGenerator from '@/core/generators/JsGenerator';
 import TsGenerator from '@/core/generators/TsGenerator';
@@ -19,6 +18,7 @@ import OperationVisitor from '@/core/oas-visitors/OperationVisitor';
 import { DocumentType } from '@/core/OasFragment';
 import EnhanceTypeNamePlugin from '@/core/plugins/EnhanceTypeNamePlugin';
 import FixRefPlugin from '@/core/plugins/FixRefPlugin';
+import LogPlugin from '@/core/plugins/LogPlugin';
 import Spinner from '@/core/Spinner';
 import * as identifier from '@/identifier';
 import FileSystem from '@/util/FileSystem';
@@ -29,6 +29,7 @@ import { Container, decorate, injectable } from 'inversify';
 import { AST } from 'json-schema-to-typescript/dist/src/types/AST';
 import { Oas20CompositeVisitor, OasLibraryUtils } from 'oai-ts-core';
 import { HookMap } from 'tapable';
+import ModuleSystem from './util/ModuleSystem';
 
 const container = new Container({
   skipBaseClassChecks: true,
@@ -82,5 +83,6 @@ container.bind<Queue<AST>>(identifier.AstQueue).to(Queue);
 container.bind<Timer>(identifier.Timer).to(Timer);
 container.bind<Network>(identifier.Network).to(Network);
 container.bind<FileSystem>(identifier.FileSystem).to(FileSystem);
+container.bind<ModuleSystem>(identifier.ModuleSystem).to(ModuleSystem);
 
 export default container;
