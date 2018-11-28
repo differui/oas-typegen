@@ -1,5 +1,5 @@
-# openapi-to-dts
-> Generate DTS file from OpenAPI document.
+# openapi-typegen
+> Generate JSDoc/TS/DTS type definitions from OpenAPI document(V2).
 
 ## Setup
 
