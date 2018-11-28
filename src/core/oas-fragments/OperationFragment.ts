@@ -31,6 +31,14 @@ class OperationFragment extends OasFragment<Oas20Operation> {
     return (this.document.parent() as Oas20PathItem).path();
   }
 
+  public get pathExpand() {
+    const segments = this.path.split('\/');
+
+    return `'${segments.map(s => s.replace(/\{([^{}]*)\}/g, '\' + request.path[\'$1\'] + \'')).join('\/')}'`
+      .replace(/''\s\+\s/, '')
+      .replace(/\s\+\s''/, '');
+  }
+
   public get title() {
     const t = `${this.document.operationId}Request`;
 
