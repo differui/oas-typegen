@@ -2,7 +2,7 @@ import * as identifier from '@/identifier';
 import Queue from '@/util/Queue';
 import { inject, injectable } from 'inversify';
 import { DEFAULT_OPTIONS, Options } from 'json-schema-to-typescript';
-import { AST, hasComment, hasStandaloneName, TEnum, TInterface, TInterfaceParam, TIntersection, TUnion } from 'json-schema-to-typescript/dist/src/types/AST';
+import { AST, hasComment, hasStandaloneName, TInterface, TInterfaceParam, TIntersection, TUnion } from 'json-schema-to-typescript/dist/src/types/AST';
 
 const DELIMITER_TAG = Symbol('DELIMITER_TAG');
 

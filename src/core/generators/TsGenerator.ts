@@ -34,8 +34,6 @@ class TsGenerator extends Generator {
     const operationRequestSchemas = operationRequestFragments.filter(fragment => fragment.parameters.length).map(striveSteam);
     const operationResponseSchemas = operationResponseFragments.map(striveSteam);
 
-    // console.log(JSON.stringify(operationRequestSchemas, undefined, 2));
-
     const definitionInterfaces = await this.generateInterfaces(definitionSchemas);
     const operationInterfaces = await this.generateInterfaces([
       ...operationRequestSchemas,
