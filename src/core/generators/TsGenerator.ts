@@ -60,11 +60,6 @@ class TsGenerator extends Generator {
       bannerComment: '',
       declareExternallyReferenced: false,
       unreachableDefinitions: false,
-      $refOptions: {
-        dereference: {
-          circular: false,
-        },
-      },
     };
     const trees = await Promise.all(schemas.map(schema => this.jsonSchemaUtils.parse(schema, schema.title || '', options)));
 
