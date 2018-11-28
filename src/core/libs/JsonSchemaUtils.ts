@@ -1,4 +1,5 @@
-import { injectable } from 'inversify';
+import * as identifier from '@/identifier';
+import { inject, injectable } from 'inversify';
 import { JSONSchema4 } from 'json-schema';
 import { DEFAULT_OPTIONS, Options } from 'json-schema-to-typescript';
 import { format } from 'json-schema-to-typescript/dist/src/formatter';
@@ -10,9 +11,12 @@ import { dereference } from 'json-schema-to-typescript/dist/src/resolver';
 import { AST } from 'json-schema-to-typescript/dist/src/types/AST';
 import { error } from 'json-schema-to-typescript/dist/src/utils';
 import { validate } from 'json-schema-to-typescript/dist/src/validator';
+import JsonSchemaMap from './JsonSchemaMap';
 
 @injectable()
 class JsonSchemaUtils {
+  @inject(identifier.JsonSchemaMap) private jsonSchemaMap: JsonSchemaMap;
+
   public visit(ast: AST, visitors: Hash<(ast: AST) => void>) {
     switch (ast.type) {
       case 'ARRAY':
@@ -43,8 +47,16 @@ class JsonSchemaUtils {
 
     const normalizedOptions = this.normalizeOptions(options);
     const dereferencedSchema = await this.dereferenceSchema(schema, name, normalizedOptions);
+    const ast = parse(
+      dereferencedSchema,
+      normalizedOptions,
+      dereferencedSchema.definitions,
+      '',
+      true,
+      this.jsonSchemaMap as any // implemented: get, set, has
+    );
 
-    return optimize(parse(dereferencedSchema, normalizedOptions, dereferencedSchema.definitions));
+    return optimize(ast);
   }
 
   public generate(ast: AST, options?: Partial<Options>) {

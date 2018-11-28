@@ -29,6 +29,7 @@ import { Container, decorate, injectable } from 'inversify';
 import { AST } from 'json-schema-to-typescript/dist/src/types/AST';
 import { Oas20CompositeVisitor, OasLibraryUtils } from 'oai-ts-core';
 import { HookMap } from 'tapable';
+import JsonSchemaMap from './core/libs/JsonSchemaMap';
 import ModuleSystem from './util/ModuleSystem';
 
 const container = new Container({
@@ -42,9 +43,10 @@ container.bind<Tapable>(identifier.Tapable).to(Tapable);
 container.bind<Spinner>(identifier.Spinner).to(Spinner);
 container.bind<PrettierUtils>(identifier.PrettierUtils).toConstantValue(new PrettierUtils());
 container.bind<IdentifierUtils>(identifier.IdentifierUtils).toConstantValue(new IdentifierUtils());
-container.bind<JsonSchemaUtils>(identifier.JsonSchemaUtils).toConstantValue(new JsonSchemaUtils());
+container.bind<JsonSchemaMap>(identifier.JsonSchemaMap).to(JsonSchemaMap);
+container.bind<JsonSchemaUtils>(identifier.JsonSchemaUtils).to(JsonSchemaUtils);
 container.bind<OasLibraryUtils>(identifier.OasLibraryUtils).toConstantValue(new OasLibraryUtils());
-container.bind<JsDocUtils>(identifier.JsDocUtils).to(JsDocUtils); // @inject used in JsDocUtils
+container.bind<JsDocUtils>(identifier.JsDocUtils).to(JsDocUtils);
 container.bind<ParameterUtils>(identifier.ParameterUtils).toConstantValue(new ParameterUtils());
 
 // core

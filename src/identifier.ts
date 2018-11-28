@@ -39,6 +39,7 @@ export const LogPlugin = Symbol('LogPlugin');
 // maps
 export const HookMap = Symbol('HookMap');
 export const OasFragmentMap = Symbol('OasFragmentMap');
+export const JsonSchemaMap = Symbol('JsonSchemaMap');
 
 // queues
 export const AstQueue = Symbol('AstQueue');
