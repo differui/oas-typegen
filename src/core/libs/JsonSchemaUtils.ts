@@ -92,10 +92,10 @@ class JsonSchemaUtils {
       return false;
     }
     processedSet.add(schema);
-    if (typeof schema.type === 'undefined' && (schema.items || schema.additionalItems)) {
+    if (typeof schema.type === 'undefined' && (schema.items || typeof schema.additionalItems === 'object')) {
       schema.type = 'array';
     }
-    if (typeof schema.type === 'undefined' && (schema.properties || schema.additionalProperties)) {
+    if (typeof schema.type === 'undefined' && (schema.properties || typeof schema.additionalProperties === 'object')) {
       schema.type = 'object';
     }
     switch (schema.type) {
