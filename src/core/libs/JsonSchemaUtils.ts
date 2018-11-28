@@ -92,18 +92,24 @@ class JsonSchemaUtils {
       return false;
     }
     processedSet.add(schema);
-    if (typeof schema.type === 'undefined' && schema.items) {
+    if (typeof schema.type === 'undefined' && (schema.items || schema.additionalItems)) {
       schema.type = 'array';
     }
-    if (typeof schema.type === 'undefined' && schema.properties) {
+    if (typeof schema.type === 'undefined' && (schema.properties || schema.additionalProperties)) {
       schema.type = 'object';
     }
     switch (schema.type) {
       case 'array':
+        if (schema.additionalItems && this.hasRef(schema.additionalItems as JSONSchema4)) {
+          return true;
+        }
         return Array.isArray(schema.items)
           ? schema.items.some(item => this.hasRef(item, processedSet))
           : schema.items ? this.hasRef(schema.items, processedSet) : false;
       case 'object':
+        if (schema.additionalProperties && this.hasRef(schema.additionalProperties as JSONSchema4)) {
+          return true;
+        }
         return Object.values(schema.properties || {}).some(property => this.hasRef(property, processedSet));
       default:
         return typeof schema.$ref === 'string';
