@@ -8,7 +8,7 @@ import { OasNodePath, OasSchema } from 'oai-ts-core';
 @injectable()
 class FixRefPlugin extends OasVisitor implements Plugin {
   public name: string = 'FixRefPlugin';
-  public refs: Set<string> = new Set();
+  public schemas: Set<OasSchema> = new Set();
 
   public apply(factory: Factory) {
     factory.hooks.createDocument.tap(this.name, this.handleCreateDocument.bind(this));
@@ -17,53 +17,24 @@ class FixRefPlugin extends OasVisitor implements Plugin {
   public handleCreateDocument(document: OasDocument) {
     document.visit(this);
 
-    const refs = new Set(Array.from(this.refs.values()));
+    const schemas = new Set(Array.from(this.schemas.values()));
 
-    refs.forEach(ref => {
-      if (!/#\//.test(ref)) {
+    schemas.forEach(schema => {
+      if (!schema.$ref || !/#\//.test(schema.$ref)) {
         return;
       }
-      if (document.resolve(new OasNodePath(ref.substr(1)))) {
+      if (document.resolve(new OasNodePath(schema.$ref.substr(1)))) {
         return;
       }
-
-      const segments = ref.substr(2).split('/');
-
-      if (segments.length !== 2) {
-        return;
-      }
-      switch (segments.shift()) {
-        case 'definitions':
-          const definitionSchemaName = segments.pop() || '';
-          const definitionSchema = document.definitions.createSchemaDefinition(definitionSchemaName);
-
-          definitionSchema.type = 'any';
-          document.definitions.addDefinition(definitionSchemaName, definitionSchema);
-          break;
-        case 'response':
-          const responseName = segments.pop() || '';
-          const response = document.responses.createResponse(responseName);
-
-          document.responses.addResponse(responseName, response);
-          break;
-        case 'parameters':
-          const parameterName = segments.pop() || '';
-          const parameter = document.parameters.createParameter(parameterName);
-
-          document.parameters.addParameter(parameterName, parameter);
-          break;
-        default:
-          break;
-      }
+      schema.$ref = '';
+      schema.type = 'any';
     });
   }
 
   // visitors
 
   public visitSchema(schema: OasSchema) {
-    if (schema.$ref) {
-      this.refs.add(schema.$ref);
-    }
+    this.schemas.add(schema);
   }
 
   public visitPropertySchema(schema: OasSchema) {
