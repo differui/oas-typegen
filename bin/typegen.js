@@ -397,18 +397,24 @@ let JsonSchemaUtils$1 = class JsonSchemaUtils$$1 {
             return false;
         }
         processedSet.add(schema);
-        if (typeof schema.type === 'undefined' && schema.items) {
+        if (typeof schema.type === 'undefined' && (schema.items || schema.additionalItems)) {
             schema.type = 'array';
         }
-        if (typeof schema.type === 'undefined' && schema.properties) {
+        if (typeof schema.type === 'undefined' && (schema.properties || schema.additionalProperties)) {
             schema.type = 'object';
         }
         switch (schema.type) {
             case 'array':
+                if (schema.additionalItems && this.hasRef(schema.additionalItems)) {
+                    return true;
+                }
                 return Array.isArray(schema.items)
                     ? schema.items.some(item => this.hasRef(item, processedSet))
                     : schema.items ? this.hasRef(schema.items, processedSet) : false;
             case 'object':
+                if (schema.additionalProperties && this.hasRef(schema.additionalProperties)) {
+                    return true;
+                }
                 return Object.values(schema.properties || {}).some(property => this.hasRef(property, processedSet));
             default:
                 return typeof schema.$ref === 'string';
@@ -611,11 +617,6 @@ let TsGenerator$1 = class TsGenerator$$1 extends Generator$1 {
                 bannerComment: '',
                 declareExternallyReferenced: false,
                 unreachableDefinitions: false,
-                $refOptions: {
-                    dereference: {
-                        circular: false,
-                    },
-                },
             };
             const trees = yield Promise.all(schemas.map(schema => this.jsonSchemaUtils.parse(schema, schema.title || '', options)));
             return trees.map(tree => this.jsonSchemaUtils.generate(tree, options)).join('\n');
@@ -1301,7 +1302,7 @@ let OperationFragment$1 = class OperationFragment extends OasFragment$2 {
         return this.document.operationId;
     }
     get introduction() {
-        const { deprecated, summary, description, } = this.document;
+        const { summary, description, } = this.document;
         return `${summary || describe} ${summary && description ? '-' : ''} ${description || ''}`.trim();
     }
     get deprecated() {

@@ -1,6 +1,6 @@
 {
   "name": "openapi-typegen",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Generate TS/JS/DTS type definitions from OpenAPI document (V2).",
   "main": "dest/bundle.js",
   "scripts": {
