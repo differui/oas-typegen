@@ -63,6 +63,7 @@ const LogPlugin = Symbol('LogPlugin');
 // maps
 const HookMap = Symbol('HookMap');
 const OasFragmentMap = Symbol('OasFragmentMap');
+const JsonSchemaMap = Symbol('JsonSchemaMap');
 // queues
 const AstQueue = Symbol('AstQueue');
 // utils
@@ -310,7 +311,34 @@ function isNotKeyedProperty(ast) {
 }
 var JsDocUtils$2 = JsDocUtils$1;
 
-let JsonSchemaUtils$1 = class JsonSchemaUtils {
+let JsonSchemaMap$1 = class JsonSchemaMap {
+    constructor() {
+        this.map = new Map();
+    }
+    get(schema) {
+        if (schema.title) {
+            return this.map.get(schema.title);
+        }
+    }
+    set(schema, ast) {
+        if (schema.title) {
+            this.map.set(schema.title, ast);
+        }
+    }
+    has(schema) {
+        if (schema.title) {
+            return this.map.has(schema.title);
+        }
+        return false;
+    }
+};
+JsonSchemaMap$1 = tslib_1.__decorate([
+    inversify.injectable()
+], JsonSchemaMap$1);
+var JsonSchemaMap$2 = JsonSchemaMap$1;
+
+var _a$4;
+let JsonSchemaUtils$1 = class JsonSchemaUtils$$1 {
     visit(ast, visitors) {
         switch (ast.type) {
             case 'ARRAY':
@@ -340,7 +368,9 @@ let JsonSchemaUtils$1 = class JsonSchemaUtils {
             this.validateSchema(schema, name);
             const normalizedOptions = this.normalizeOptions(options);
             const dereferencedSchema = yield this.dereferenceSchema(schema, name, normalizedOptions);
-            return jsonSchemaToTypescript_dist_src_optimizer.optimize(jsonSchemaToTypescript_dist_src_parser.parse(dereferencedSchema, normalizedOptions, dereferencedSchema.definitions));
+            const ast = jsonSchemaToTypescript_dist_src_parser.parse(dereferencedSchema, normalizedOptions, dereferencedSchema.definitions, '', true, this.jsonSchemaMap // implemented: get, set, has
+            );
+            return jsonSchemaToTypescript_dist_src_optimizer.optimize(ast);
         });
     }
     generate(ast, options) {
@@ -401,6 +431,10 @@ let JsonSchemaUtils$1 = class JsonSchemaUtils {
         });
     }
 };
+tslib_1.__decorate([
+    inversify.inject(JsonSchemaMap),
+    tslib_1.__metadata("design:type", typeof (_a$4 = typeof JsonSchemaMap$2 !== "undefined" && JsonSchemaMap$2) === "function" ? _a$4 : Object)
+], JsonSchemaUtils$1.prototype, "jsonSchemaMap", void 0);
 JsonSchemaUtils$1 = tslib_1.__decorate([
     inversify.injectable()
 ], JsonSchemaUtils$1);
@@ -528,7 +562,7 @@ JsGenerator$1 = tslib_1.__decorate([
 ], JsGenerator$1);
 var JsGenerator$2 = JsGenerator$1;
 
-var _a$4;
+var _a$5;
 let TsGenerator$1 = class TsGenerator$$1 extends Generator$1 {
     generate(fragments, options) {
         return tslib_1.__awaiter(this, void 0, void 0, function* () {
@@ -577,6 +611,11 @@ let TsGenerator$1 = class TsGenerator$$1 extends Generator$1 {
                 bannerComment: '',
                 declareExternallyReferenced: false,
                 unreachableDefinitions: false,
+                $refOptions: {
+                    dereference: {
+                        circular: false,
+                    },
+                },
             };
             const trees = yield Promise.all(schemas.map(schema => this.jsonSchemaUtils.parse(schema, schema.title || '', options)));
             return trees.map(tree => this.jsonSchemaUtils.generate(tree, options)).join('\n');
@@ -600,14 +639,14 @@ let TsGenerator$1 = class TsGenerator$$1 extends Generator$1 {
 };
 tslib_1.__decorate([
     inversify.inject(JsonSchemaUtils),
-    tslib_1.__metadata("design:type", typeof (_a$4 = typeof JsonSchemaUtils$2 !== "undefined" && JsonSchemaUtils$2) === "function" ? _a$4 : Object)
+    tslib_1.__metadata("design:type", typeof (_a$5 = typeof JsonSchemaUtils$2 !== "undefined" && JsonSchemaUtils$2) === "function" ? _a$5 : Object)
 ], TsGenerator$1.prototype, "jsonSchemaUtils", void 0);
 TsGenerator$1 = tslib_1.__decorate([
     inversify.injectable()
 ], TsGenerator$1);
 var TsGenerator$2 = TsGenerator$1;
 
-var _a$5;
+var _a$6;
 inversify.decorate(inversify.injectable(), oaiTsCore.OasLibraryUtils);
 let OasDocument$1 = class OasDocument$$1 {
     get definitions() {
@@ -640,7 +679,7 @@ let OasDocument$1 = class OasDocument$$1 {
 };
 tslib_1.__decorate([
     inversify.inject(OasLibraryUtils$1),
-    tslib_1.__metadata("design:type", typeof (_a$5 = typeof oaiTsCore.OasLibraryUtils !== "undefined" && oaiTsCore.OasLibraryUtils) === "function" ? _a$5 : Object)
+    tslib_1.__metadata("design:type", typeof (_a$6 = typeof oaiTsCore.OasLibraryUtils !== "undefined" && oaiTsCore.OasLibraryUtils) === "function" ? _a$6 : Object)
 ], OasDocument$1.prototype, "library", void 0);
 OasDocument$1 = tslib_1.__decorate([
     inversify.injectable()
@@ -674,7 +713,7 @@ OasVisitor = tslib_1.__decorate([
 ], OasVisitor);
 var OasVisitor$1 = OasVisitor;
 
-var _a$6;
+var _a$7;
 let DefinitionVisitor$1 = class DefinitionVisitor$$1 extends OasVisitor$1 {
     visitSchemaDefinition(definitionSchemaDocument) {
         const definition = container.get(DefinitionFragment);
@@ -684,14 +723,14 @@ let DefinitionVisitor$1 = class DefinitionVisitor$$1 extends OasVisitor$1 {
 };
 tslib_1.__decorate([
     inversify.inject(OasFragmentMap),
-    tslib_1.__metadata("design:type", typeof (_a$6 = typeof Map !== "undefined" && Map) === "function" ? _a$6 : Object)
+    tslib_1.__metadata("design:type", typeof (_a$7 = typeof Map !== "undefined" && Map) === "function" ? _a$7 : Object)
 ], DefinitionVisitor$1.prototype, "definitions", void 0);
 DefinitionVisitor$1 = tslib_1.__decorate([
     inversify.injectable()
 ], DefinitionVisitor$1);
 var DefinitionVisitor$2 = DefinitionVisitor$1;
 
-var _a$7;
+var _a$8;
 var _b$2;
 let OperationVisitor$1 = class OperationVisitor$$1 extends OasVisitor$1 {
     visitOperation(operationDocument) {
@@ -705,7 +744,7 @@ let OperationVisitor$1 = class OperationVisitor$$1 extends OasVisitor$1 {
 };
 tslib_1.__decorate([
     inversify.inject(OasFragmentMap),
-    tslib_1.__metadata("design:type", typeof (_a$7 = typeof Map !== "undefined" && Map) === "function" ? _a$7 : Object)
+    tslib_1.__metadata("design:type", typeof (_a$8 = typeof Map !== "undefined" && Map) === "function" ? _a$8 : Object)
 ], OperationVisitor$1.prototype, "request", void 0);
 tslib_1.__decorate([
     inversify.inject(OasFragmentMap),
@@ -845,9 +884,6 @@ let Factory$1 = class Factory$$1 extends Tapable$2 {
                 case 'js':
                     yield this.hooks.createGenerator.promise(this.jsGenerator, generateOptions);
                     code = yield this.jsGenerator.generate(fragments, generateOptions);
-                    break;
-                case 'dts':
-                    // todo
                     break;
                 default:
                     break;
@@ -1230,7 +1266,7 @@ ParameterUtils$1 = tslib_1.__decorate([
 ], ParameterUtils$1);
 var ParameterUtils$2 = ParameterUtils$1;
 
-var _a$8;
+var _a$9;
 let DefinitionFragment$1 = class DefinitionFragment$$1 extends OasFragment$2 {
     constructor() {
         super(...arguments);
@@ -1249,7 +1285,7 @@ let DefinitionFragment$1 = class DefinitionFragment$$1 extends OasFragment$2 {
 };
 tslib_1.__decorate([
     inversify.inject(IdentifierUtils),
-    tslib_1.__metadata("design:type", typeof (_a$8 = typeof IdentifierUtils$2 !== "undefined" && IdentifierUtils$2) === "function" ? _a$8 : Object)
+    tslib_1.__metadata("design:type", typeof (_a$9 = typeof IdentifierUtils$2 !== "undefined" && IdentifierUtils$2) === "function" ? _a$9 : Object)
 ], DefinitionFragment$1.prototype, "identifierUtils", void 0);
 DefinitionFragment$1 = tslib_1.__decorate([
     inversify.injectable()
@@ -1299,7 +1335,7 @@ OperationFragment$1 = tslib_1.__decorate([
 ], OperationFragment$1);
 var OperationFragment$2 = OperationFragment$1;
 
-var _a$9;
+var _a$10;
 let OperationRequestFragment$1 = class OperationRequestFragment$$1 extends OperationFragment$2 {
     constructor() {
         super(...arguments);
@@ -1330,7 +1366,7 @@ let OperationRequestFragment$1 = class OperationRequestFragment$$1 extends Opera
 };
 tslib_1.__decorate([
     inversify.inject(ParameterUtils),
-    tslib_1.__metadata("design:type", typeof (_a$9 = typeof ParameterUtils$2 !== "undefined" && ParameterUtils$2) === "function" ? _a$9 : Object)
+    tslib_1.__metadata("design:type", typeof (_a$10 = typeof ParameterUtils$2 !== "undefined" && ParameterUtils$2) === "function" ? _a$10 : Object)
 ], OperationRequestFragment$1.prototype, "parameterUtils", void 0);
 OperationRequestFragment$1 = tslib_1.__decorate([
     inversify.injectable()
@@ -1498,7 +1534,7 @@ Spinner$1 = tslib_1.__decorate([
 ], Spinner$1);
 var Spinner$2 = Spinner$1;
 
-var _a$10;
+var _a$11;
 let LogPlugin$1 = class LogPlugin$$1 {
     constructor() {
         this.name = 'LogPlugin';
@@ -1525,7 +1561,7 @@ let LogPlugin$1 = class LogPlugin$$1 {
 };
 tslib_1.__decorate([
     inversify.inject(Spinner),
-    tslib_1.__metadata("design:type", typeof (_a$10 = typeof Spinner$2 !== "undefined" && Spinner$2) === "function" ? _a$10 : Object)
+    tslib_1.__metadata("design:type", typeof (_a$11 = typeof Spinner$2 !== "undefined" && Spinner$2) === "function" ? _a$11 : Object)
 ], LogPlugin$1.prototype, "spinner", void 0);
 LogPlugin$1 = tslib_1.__decorate([
     inversify.injectable()
@@ -1630,9 +1666,10 @@ container.bind(Tapable$1).to(Tapable$2);
 container.bind(Spinner).to(Spinner$2);
 container.bind(PrettierUtils).toConstantValue(new PrettierUtils$2());
 container.bind(IdentifierUtils).toConstantValue(new IdentifierUtils$2());
-container.bind(JsonSchemaUtils).toConstantValue(new JsonSchemaUtils$2());
+container.bind(JsonSchemaMap).to(JsonSchemaMap$2);
+container.bind(JsonSchemaUtils).to(JsonSchemaUtils$2);
 container.bind(OasLibraryUtils$1).toConstantValue(new oaiTsCore.OasLibraryUtils());
-container.bind(JsDocUtils).to(JsDocUtils$2); // @inject used in JsDocUtils
+container.bind(JsDocUtils).to(JsDocUtils$2);
 container.bind(ParameterUtils).toConstantValue(new ParameterUtils$2());
 // core
 container.bind(CLI).to(CLI$2);
