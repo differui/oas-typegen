@@ -593,7 +593,6 @@ let TsGenerator$1 = class TsGenerator$$1 extends Generator$1 {
             const definitionSchemas = definitionFragments.map(striveSteam);
             const operationRequestSchemas = operationRequestFragments.filter(fragment => fragment.parameters.length).map(striveSteam);
             const operationResponseSchemas = operationResponseFragments.map(striveSteam);
-            // console.log(JSON.stringify(operationRequestSchemas, undefined, 2));
             const definitionInterfaces = yield this.generateInterfaces(definitionSchemas);
             const operationInterfaces = yield this.generateInterfaces([
                 ...operationRequestSchemas,
@@ -1436,52 +1435,28 @@ let FixRefPlugin$1 = class FixRefPlugin extends OasVisitor$1 {
     constructor() {
         super(...arguments);
         this.name = 'FixRefPlugin';
-        this.refs = new Set();
+        this.schemas = new Set();
     }
     apply(factory) {
         factory.hooks.createDocument.tap(this.name, this.handleCreateDocument.bind(this));
     }
     handleCreateDocument(document) {
         document.visit(this);
-        const refs = new Set(Array.from(this.refs.values()));
-        refs.forEach(ref => {
-            if (!/#\//.test(ref)) {
+        const schemas = new Set(Array.from(this.schemas.values()));
+        schemas.forEach(schema => {
+            if (!schema.$ref || !/#\//.test(schema.$ref)) {
                 return;
             }
-            if (document.resolve(new oaiTsCore.OasNodePath(ref.substr(1)))) {
+            if (document.resolve(new oaiTsCore.OasNodePath(schema.$ref.substr(1)))) {
                 return;
             }
-            const segments = ref.substr(2).split('/');
-            if (segments.length !== 2) {
-                return;
-            }
-            switch (segments.shift()) {
-                case 'definitions':
-                    const definitionSchemaName = segments.pop() || '';
-                    const definitionSchema = document.definitions.createSchemaDefinition(definitionSchemaName);
-                    definitionSchema.type = 'any';
-                    document.definitions.addDefinition(definitionSchemaName, definitionSchema);
-                    break;
-                case 'response':
-                    const responseName = segments.pop() || '';
-                    const response = document.responses.createResponse(responseName);
-                    document.responses.addResponse(responseName, response);
-                    break;
-                case 'parameters':
-                    const parameterName = segments.pop() || '';
-                    const parameter = document.parameters.createParameter(parameterName);
-                    document.parameters.addParameter(parameterName, parameter);
-                    break;
-                default:
-                    break;
-            }
+            schema.$ref = '';
+            schema.type = 'any';
         });
     }
     // visitors
     visitSchema(schema) {
-        if (schema.$ref) {
-            this.refs.add(schema.$ref);
-        }
+        this.schemas.add(schema);
     }
     visitPropertySchema(schema) {
         this.visitSchema(schema);
