@@ -1,7 +1,8 @@
-[0.1.2]
+[0.1.3]()
 
 + set undefined definitions ($ref) to any type;
 + support additionItems and additionProperties;
++ fix hasRef return wrong result when receive schema with $ref only;
 
 [0.1.0](595760d2d11dfaee3b8df125f52a1d599d2256da)
 
