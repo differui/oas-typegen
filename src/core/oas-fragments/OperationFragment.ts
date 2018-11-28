@@ -12,7 +12,6 @@ class OperationFragment extends OasFragment<Oas20Operation> {
 
   public get introduction() {
     const {
-      deprecated,
       summary,
       description,
     } = this.document;
