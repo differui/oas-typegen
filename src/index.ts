@@ -3,9 +3,9 @@ import 'reflect-metadata';
 import CLI, { ConfigOptionsRequired } from '@/core/CLI';
 import Factory from '@/core/Factory';
 import Plugin from '@/core/Plugin';
+import AxiosPlugin from '@/core/plugins/AxiosPlugin';
 import EnhanceTypeNamePlugin from '@/core/plugins/EnhanceTypeNamePlugin';
 import FixRefPlugin from '@/core/plugins/FixRefPlugin';
-import LogPlugin from '@/core/plugins/LogPlugin';
 import * as identifier from '@/identifier';
 import container from '@/inversify.config';
 import FileSystem from '@/util/FileSystem';
@@ -27,9 +27,9 @@ async function build(options: ConfigOptionsRequired) {
     plugins,
   } = options;
   const builtInPlugins: Array<Plugin> = [
-    container.get<LogPlugin>(identifier.LogPlugin),
     container.get<EnhanceTypeNamePlugin>(identifier.EnhanceTypeNamePlugin),
     container.get<FixRefPlugin>(identifier.FixRefPlugin),
+    container.get<AxiosPlugin>(identifier.AxiosPlugin),
   ];
   const externalPlugins: Array<Plugin> = plugins.map(pluginName => {
     const normalizedPluginName = /^(?:(?:typegen-plugin-)|\.|\/)/i.test(pluginName)
