@@ -27,8 +27,8 @@ var path = require('path');
 var openapiJsonschemaParameters = require('openapi-jsonschema-parameters');
 var md5 = _interopDefault(require('md5'));
 var ora = _interopDefault(require('ora'));
-var axios = _interopDefault(require('axios'));
 var resolve$1 = require('resolve');
+var axios = _interopDefault(require('axios'));
 
 // libs
 const Tapable$1 = Symbol('Tapable');
@@ -60,6 +60,7 @@ const JsGenerator = Symbol('JsGenerator');
 const EnhanceTypeNamePlugin = Symbol('EnhanceTypeNamePlugin');
 const FixRefPlugin = Symbol('FixRefPlugin');
 const LogPlugin = Symbol('LogPlugin');
+const AxiosPlugin = Symbol('AxiosPlugin');
 // maps
 const HookMap = Symbol('HookMap');
 const OasFragmentMap = Symbol('OasFragmentMap');
@@ -503,7 +504,6 @@ let JsGenerator$1 = class JsGenerator$$1 extends Generator$1 {
                 ].sort(sortSchema)),
             ]);
             return [
-                this.generateDispatch(options),
                 definitionTypeDefs,
                 operationTypeDefs,
                 '\n',
@@ -511,12 +511,6 @@ let JsGenerator$1 = class JsGenerator$$1 extends Generator$1 {
                 this.generateOperations(operationRequestFragments, options),
             ].join('\n');
         });
-    }
-    generateDispatch(options) {
-        if (options.format === 'es') {
-            return `import ${options.helperName} from '${options.helper}'`;
-        }
-        return `const ${options.helperName} = require('${options.helper}')`;
     }
     generateTypeDef(schemas) {
         return tslib_1.__awaiter(this, void 0, void 0, function* () {
@@ -541,17 +535,24 @@ let JsGenerator$1 = class JsGenerator$$1 extends Generator$1 {
                 tags.push('@deprecated');
             }
             tags.push(`@returns {Promise<${responseGuard}>}`);
-            return `
+            const comment = `
         /**
          * ${fragment.introduction}
          *
          * \`${fragment.method} ${fragment.path}\`
          *
          ${tags.map(tag => `* ${tag}`).join('\n')}
-         */
+        */`;
+            const operation = options.format === 'es'
+                ? `
         export function ${fragment.id}(${requestGuard ? 'request' : ''}) {
-          return ${options.helperName}(${JSON.stringify(fragment.method)}, ${JSON.stringify(fragment.path)}, ${requestGuard ? 'request' : ''});
-        }`;
+          return dispatchRequest(${JSON.stringify(fragment.method)}, ${JSON.stringify(fragment.path)}, ${requestGuard ? 'request' : ''});
+        }`
+                : `
+        module.exports.${fragment.id} = function ${fragment.id}(${requestGuard ? 'request' : ''}) {
+          return dispatchRequest(${JSON.stringify(fragment.method)}, ${JSON.stringify(fragment.path)}, ${requestGuard ? 'request' : ''});
+        };`;
+            return `${comment}${operation}`;
         }).filter(Boolean).join('\n');
     }
 };
@@ -599,16 +600,11 @@ let TsGenerator$1 = class TsGenerator$$1 extends Generator$1 {
                 ...operationResponseSchemas,
             ].sort(sortSchema));
             return [
-                this.generateDispatch(),
-                '',
                 definitionInterfaces,
                 operationInterfaces,
                 this.generateOperations(operationRequestFragments),
             ].join('\n');
         });
-    }
-    generateDispatch() {
-        return `import dispatchRequest from './dispatchRequest'`;
     }
     generateInterfaces(schemas) {
         return tslib_1.__awaiter(this, void 0, void 0, function* () {
@@ -623,7 +619,7 @@ let TsGenerator$1 = class TsGenerator$$1 extends Generator$1 {
     }
     generateOperations(fragments) {
         return fragments.map(fragment => {
-            const requestGuard = fragment.parameters.length ? `request: ${fragment.title}` : '';
+            const requestGuard = fragment.parameters.length ? fragment.title : '';
             const responseGuard = fragment.responseSuccessCodes.length ? fragment.title.replace(/Request$/, 'Response') : 'void';
             return `
         /**
@@ -631,8 +627,8 @@ let TsGenerator$1 = class TsGenerator$$1 extends Generator$1 {
          *
          * \`${fragment.method} ${fragment.path}\`
          */
-        export function ${fragment.id}(${requestGuard}): Promise<${responseGuard}> {
-          return dispatchRequest(${JSON.stringify(fragment.method)}, ${JSON.stringify(fragment.path)}, ${requestGuard ? 'request' : ''});
+        export function ${fragment.id}(${requestGuard ? `request: ${requestGuard}` : ''}): Promise<${responseGuard}> {
+          return dispatchRequest<${responseGuard}>(${JSON.stringify(fragment.method)}, ${JSON.stringify(fragment.path)}${requestGuard ? ', request' : ''});
         }`;
         }).filter(Boolean).join('\n');
     }
@@ -804,11 +800,8 @@ const DEFAULT_OUTPUT_OPTIONS = {
     language: 'js',
     intro: '',
     outro: '',
-    helper: './dispatchRequest',
-    helperName: 'dispatchRequest',
 };
 const DEFAULT_PRETTIER_OPTIONS = {
-    parser: 'babylon',
     semi: true,
     singleQuote: true,
     trailingComma: 'es5',
@@ -833,7 +826,7 @@ let Factory$1 = class Factory$$1 extends Tapable$2 {
             createRequestOperationFragment: new tapable.AsyncSeriesHook(['operationRequestFragment']),
             createResponseOperationFragment: new tapable.AsyncSeriesHook(['operationResponseFragment']),
             createGenerator: new tapable.AsyncSeriesHook(['code', 'options']),
-            generate: new tapable.AsyncSeriesBailHook(['string']),
+            generate: new tapable.AsyncSeriesWaterfallHook(['string', 'options']),
             write: new tapable.AsyncParallelHook(['options', 'code']),
         };
     }
@@ -872,8 +865,7 @@ let Factory$1 = class Factory$$1 extends Tapable$2 {
             ];
             const generateOptions = {
                 format: mergedOptions.output.format,
-                helper: mergedOptions.output.helper,
-                helperName: mergedOptions.output.helperName,
+                language: mergedOptions.output.language,
             };
             let code = '';
             switch (mergedOptions.output.language) {
@@ -894,7 +886,8 @@ let Factory$1 = class Factory$$1 extends Tapable$2 {
                 mergedOptions.output.outro,
                 '\n',
             ].filter(Boolean).join('\n'), mergedOptions.prettier);
-            code = yield this.hooks.generate.promise(code);
+            code = yield this.hooks.generate.promise(code, generateOptions);
+            code = this.prettierUtils.format(code, mergedOptions.prettier);
             // output document or write to stdout
             const { path: path$$1, } = mergedOptions.output;
             if (path$$1) {
@@ -915,6 +908,12 @@ let Factory$1 = class Factory$$1 extends Tapable$2 {
         }
         const output = Object.assign({}, DEFAULT_OUTPUT_OPTIONS, options.output);
         const prettier$$1 = Object.assign({}, DEFAULT_PRETTIER_OPTIONS, options.prettier);
+        if (output.language === 'ts') {
+            prettier$$1.parser = 'typescript';
+        }
+        else {
+            prettier$$1.parser = 'babylon';
+        }
         return {
             input: options.input || '',
             output,
@@ -985,9 +984,6 @@ const HELP_MESSAGE = `
                    > dts: create a .js file and declare types in a .d.ts
     --plugin, -p   Load the plugin from local node_modules.
 
-    --helper       Path or url for customize ajax helper.
-    --helper-name  Name for ajax helper. Use "dispatchRequest" by default.
-
     --intro        Content to insert at top of generated type file.
     --outro        Content to insert at bottom of generated type file.
 
@@ -1035,14 +1031,6 @@ let CLI$1 = class CLI$$1 {
                     alias: 'l',
                     default: DEFAULT_OUTPUT_OPTIONS.language,
                 },
-                helper: {
-                    type: 'string',
-                    default: DEFAULT_OUTPUT_OPTIONS.helper,
-                },
-                helperName: {
-                    type: 'string',
-                    default: DEFAULT_OUTPUT_OPTIONS.helperName,
-                },
                 intro: {
                     type: 'string',
                     default: DEFAULT_OUTPUT_OPTIONS.intro,
@@ -1076,30 +1064,24 @@ let CLI$1 = class CLI$$1 {
             },
         });
         // apply implicit rules
-        const { dir, file, language, output, helper, helperName, } = this.cli.flags;
+        const { dir, file, language, output, } = this.cli.flags;
         const ext = language.substr(-2);
         // rule: if provide 'dir' and omit 'output' then create output
         if (!output && dir && file) {
             this.cli.flags.output = path.resolve(dir, file.endsWith(`.${ext}`) ? file : `${file}.${ext}`);
-        }
-        // rule: if omit 'helper' then use default helper name
-        if (!helper && helperName) {
-            this.cli.flags.helper = `./${helperName}`;
         }
     }
     get input() {
         return this.cli.flags.input;
     }
     get output() {
-        const { format: format$$1, language, output, intro, outro, helper, helperName, } = this.cli.flags;
+        const { format: format$$1, language, output, intro, outro, } = this.cli.flags;
         return {
             path: output,
             format: format$$1,
             language,
             intro,
             outro,
-            helper,
-            helperName,
         };
     }
     get cliOptions() {
@@ -1350,6 +1332,14 @@ let OperationRequestFragment$1 = class OperationRequestFragment$$1 extends Opera
         const { definitions } = this.ownerModal;
         if (parameters && parameters.length) {
             const properties = this.parameterUtils.transform(parameters);
+            if (properties.query) {
+                properties.params = properties.query;
+                delete properties.query;
+            }
+            if (properties.body) {
+                properties.data = properties.body;
+                delete properties.body;
+            }
             return {
                 type: 'object',
                 title: this.title,
@@ -1405,6 +1395,78 @@ OperationResponseFragment$1 = tslib_1.__decorate([
     inversify.injectable()
 ], OperationResponseFragment$1);
 var OperationResponseFragment$2 = OperationResponseFragment$1;
+
+let AxiosPlugin$1 = class AxiosPlugin {
+    constructor() {
+        this.name = 'AxiosPlugin';
+    }
+    apply(factory) {
+        factory.hooks.generate.tap(this.name, this.handleGenerate.bind(this));
+    }
+    handleGenerate(code, options) {
+        return `
+    ${this.generateImport(options)}
+    ${this.generateInstance(options)}
+    ${this.generateDispatch(options)}
+    ${this.generateCode(code, options)}`;
+    }
+    generateImport(options) {
+        if (options.language === 'js' && options.format === 'cjs') {
+            return `var axios = require('axios')`;
+        }
+        if (options.language === 'ts') {
+            return `import axios, { AxiosPromise, AxiosRequestConfig } from 'axios';`;
+        }
+        return `import axios from 'axios'`;
+    }
+    generateInstance(options) {
+        if (options.language === 'js' && options.format === 'cjs') {
+            return `var axiosInstance = module.exports.axiosInstance = axios.create();`;
+        }
+        return `export const axiosInstance = axios.create();`;
+    }
+    generateDispatch(options) {
+        switch (options.language) {
+            case 'js':
+                return `
+          function dispatchRequest(method, url, config) {
+            config = config || {};
+            return axiosInstance.request({
+              url: url,
+              method: method,
+              params: config.params,
+              headers: config.headers,
+              data: config.data,
+            });
+          }`;
+            case 'ts':
+                return `
+          function dispatchRequest<T>(method: string, url: string, config?: AxiosRequestConfig) {
+            return axiosInstance.request<T>({
+              url,
+              method,
+              ...config,
+            });
+          }`;
+            default:
+                return '';
+        }
+    }
+    generateCode(code, options) {
+        switch (options.language) {
+            case 'js':
+                return code.replace(/Promise/g, `import('axios').AxiosPromise`);
+            case 'ts':
+                return code.replace(/Promise/g, 'AxiosPromise');
+            default:
+                return code;
+        }
+    }
+};
+AxiosPlugin$1 = tslib_1.__decorate([
+    inversify.injectable()
+], AxiosPlugin$1);
+var AxiosPlugin$2 = AxiosPlugin$1;
 
 let EnhanceTypeNamePlugin$1 = class EnhanceTypeNamePlugin {
     constructor() {
@@ -1545,6 +1607,43 @@ LogPlugin$1 = tslib_1.__decorate([
 ], LogPlugin$1);
 var LogPlugin$2 = LogPlugin$1;
 
+let ModuleSystem$1 = class ModuleSystem {
+    constructor() {
+        this.loadingModules = new Set();
+    }
+    resolve(name, dirname = process.cwd()) {
+        try {
+            const pathname = resolve$1.sync(name, {
+                basedir: dirname,
+            });
+            return {
+                name,
+                pathname,
+                module: this.require(pathname),
+            };
+        }
+        catch (err) {
+            throw new Error(`Plugin ${name} not found relative to ${dirname}`);
+        }
+    }
+    require(name) {
+        if (this.loadingModules.has(name)) {
+            throw new Error('dependency cycle detected');
+        }
+        try {
+            this.loadingModules.add(name);
+            return require(name);
+        }
+        finally {
+            this.loadingModules.delete(name);
+        }
+    }
+};
+ModuleSystem$1 = tslib_1.__decorate([
+    inversify.injectable()
+], ModuleSystem$1);
+var ModuleSystem$2 = ModuleSystem$1;
+
 let Network$1 = class Network {
     downloadJSON(url) {
         return tslib_1.__awaiter(this, void 0, void 0, function* () {
@@ -1597,43 +1696,6 @@ Timer$1 = tslib_1.__decorate([
 ], Timer$1);
 var Timer$2 = Timer$1;
 
-let ModuleSystem$1 = class ModuleSystem {
-    constructor() {
-        this.loadingModules = new Set();
-    }
-    resolve(name, dirname = process.cwd()) {
-        try {
-            const pathname = resolve$1.sync(name, {
-                basedir: dirname,
-            });
-            return {
-                name,
-                pathname,
-                module: this.require(pathname),
-            };
-        }
-        catch (err) {
-            throw new Error(`Plugin ${name} not found relative to ${dirname}`);
-        }
-    }
-    require(name) {
-        if (this.loadingModules.has(name)) {
-            throw new Error('dependency cycle detected');
-        }
-        try {
-            this.loadingModules.add(name);
-            return require(name);
-        }
-        finally {
-            this.loadingModules.delete(name);
-        }
-    }
-};
-ModuleSystem$1 = tslib_1.__decorate([
-    inversify.injectable()
-], ModuleSystem$1);
-var ModuleSystem$2 = ModuleSystem$1;
-
 const container = new inversify.Container({
     skipBaseClassChecks: true,
 });
@@ -1668,6 +1730,7 @@ container.bind(JsGenerator).to(JsGenerator$2);
 container.bind(EnhanceTypeNamePlugin).to(EnhanceTypeNamePlugin$2);
 container.bind(FixRefPlugin).to(FixRefPlugin$2);
 container.bind(LogPlugin).to(LogPlugin$2);
+container.bind(AxiosPlugin).to(AxiosPlugin$2);
 // maps
 container.bind(HookMap).to(Map);
 container.bind(OasFragmentMap).to(Map);
@@ -1688,9 +1751,9 @@ function build(options) {
     return tslib_1.__awaiter(this, void 0, void 0, function* () {
         const { input, output, silent, plugins, } = options;
         const builtInPlugins = [
-            container.get(LogPlugin),
             container.get(EnhanceTypeNamePlugin),
             container.get(FixRefPlugin),
+            container.get(AxiosPlugin),
         ];
         const externalPlugins = plugins.map(pluginName => {
             const normalizedPluginName = /^(?:(?:typegen-plugin-)|\.|\/)/i.test(pluginName)
