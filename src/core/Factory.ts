@@ -15,7 +15,7 @@ import FileSystem from '@/util/FileSystem';
 import { inject, injectable } from 'inversify';
 import { OpenAPIV2 } from 'openapi-types';
 import { Options as PrettierOptions } from 'prettier';
-import { AsyncParallelHook, AsyncSeriesBailHook, AsyncSeriesHook } from 'tapable';
+import { AsyncParallelHook, AsyncSeriesHook, AsyncSeriesWaterfallHook } from 'tapable';
 
 export interface FactoryOutputOptions {
   path?: string;
@@ -23,8 +23,6 @@ export interface FactoryOutputOptions {
   language?: 'ts'|'js'|'dts';
   intro?: string;
   outro?: string;
-  helper?: string;
-  helperName?: string;
 }
 
 export interface FactoryOptions {
@@ -44,12 +42,9 @@ export const DEFAULT_OUTPUT_OPTIONS: Required<FactoryOutputOptions> = {
   language: 'js',
   intro: '',
   outro: '',
-  helper: './dispatchRequest',
-  helperName: 'dispatchRequest',
 };
 
 export const DEFAULT_PRETTIER_OPTIONS: PrettierOptions = {
-  parser: 'babylon',
   semi: true,
   singleQuote: true,
   trailingComma: 'es5',
@@ -75,7 +70,7 @@ class Factory extends Tapable {
     createRequestOperationFragment: new AsyncSeriesHook<OperationRequestFragment>(['operationRequestFragment']),
     createResponseOperationFragment: new AsyncSeriesHook<OperationResponseFragment>(['operationResponseFragment']),
     createGenerator: new AsyncSeriesHook<JsGenerator|TsGenerator, GeneratorOptions>(['code', 'options']),
-    generate: new AsyncSeriesBailHook<string>(['string']),
+    generate: new AsyncSeriesWaterfallHook<string, GeneratorOptions>(['string', 'options']),
     write: new AsyncParallelHook<FactoryOptionsRequired>(['options', 'code']),
   };
 
@@ -132,8 +127,7 @@ class Factory extends Tapable {
     ];
     const generateOptions: GeneratorOptions = {
       format: mergedOptions.output.format,
-      helper: mergedOptions.output.helper,
-      helperName: mergedOptions.output.helperName,
+      language: mergedOptions.output.language,
     };
     let code = '';
 
@@ -155,7 +149,8 @@ class Factory extends Tapable {
       mergedOptions.output.outro,
       '\n', // trailing newline
     ].filter(Boolean).join('\n'), mergedOptions.prettier);
-    code = await this.hooks.generate.promise(code);
+    code = await this.hooks.generate.promise(code, generateOptions);
+    code = this.prettierUtils.format(code, mergedOptions.prettier);
 
     // output document or write to stdout
     const {
@@ -186,6 +181,11 @@ class Factory extends Tapable {
       ...options.prettier,
     };
 
+    if (output.language === 'ts') {
+      prettier.parser = 'typescript';
+    } else {
+      prettier.parser = 'babylon';
+    }
     return {
       input: options.input || '',
       output,

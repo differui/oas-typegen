@@ -41,16 +41,10 @@ class TsGenerator extends Generator {
     ].sort(sortSchema));
 
     return [
-      this.generateDispatch(),
-      '',
       definitionInterfaces,
       operationInterfaces,
       this.generateOperations(operationRequestFragments),
     ].join('\n');
-  }
-
-  private generateDispatch() {
-    return `import dispatchRequest from './dispatchRequest'`;
   }
 
   private async generateInterfaces(schemas: Array<JSONSchema4>) {
@@ -66,7 +60,7 @@ class TsGenerator extends Generator {
 
   private generateOperations(fragments: Array<OperationRequestFragment>) {
     return fragments.map(fragment => {
-      const requestGuard = fragment.parameters.length ? `request: ${fragment.title}` : '';
+      const requestGuard = fragment.parameters.length ? fragment.title : '';
       const responseGuard = fragment.responseSuccessCodes.length ? fragment.title.replace(/Request$/, 'Response') : 'void';
 
       return `
@@ -75,8 +69,8 @@ class TsGenerator extends Generator {
          *
          * \`${fragment.method} ${fragment.path}\`
          */
-        export function ${fragment.id}(${requestGuard}): Promise<${responseGuard}> {
-          return dispatchRequest(${JSON.stringify(fragment.method)}, ${JSON.stringify(fragment.path)}, ${requestGuard ? 'request' : ''});
+        export function ${fragment.id}(${requestGuard ? `request: ${requestGuard}` : ''}): Promise<${responseGuard}> {
+          return dispatchRequest<${responseGuard}>(${JSON.stringify(fragment.method)}, ${JSON.stringify(fragment.path)}${requestGuard ? ', request' : ''});
         }`;
     }).filter(Boolean).join('\n');
   }

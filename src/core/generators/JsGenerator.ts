@@ -52,20 +52,12 @@ class JsGenerator extends Generator {
     ]);
 
     return [
-      this.generateDispatch(options),
       definitionTypeDefs,
       operationTypeDefs,
       '\n',
       `void 'A DELIMITER LINE DISTINGUISH TYPE-DEFS AND API DEFINITIONS'`,
       this.generateOperations(operationRequestFragments, options),
     ].join('\n');
-  }
-
-  private generateDispatch(options: GeneratorOptions) {
-    if (options.format === 'es') {
-      return `import ${options.helperName} from '${options.helper}'`;
-    }
-    return `const ${options.helperName} = require('${options.helper}')`;
   }
 
   private async generateTypeDef(schemas: Array<JSONSchema4>) {
@@ -93,17 +85,25 @@ class JsGenerator extends Generator {
       }
       tags.push(`@returns {Promise<${responseGuard}>}`);
 
-      return `
+      const comment = `
         /**
          * ${fragment.introduction}
          *
          * \`${fragment.method} ${fragment.path}\`
          *
          ${tags.map(tag => `* ${tag}`).join('\n')}
-         */
+        */`;
+      const operation = options.format === 'es'
+        ? `
         export function ${fragment.id}(${requestGuard ? 'request' : ''}) {
-          return ${options.helperName}(${JSON.stringify(fragment.method)}, ${JSON.stringify(fragment.path)}, ${requestGuard ? 'request' : ''});
-        }`;
+          return dispatchRequest(${JSON.stringify(fragment.method)}, ${JSON.stringify(fragment.path)}, ${requestGuard ? 'request' : ''});
+        }`
+        : `
+        module.exports.${fragment.id} = function ${fragment.id}(${requestGuard ? 'request' : ''}) {
+          return dispatchRequest(${JSON.stringify(fragment.method)}, ${JSON.stringify(fragment.path)}, ${requestGuard ? 'request' : ''});
+        };`;
+
+      return `${comment}${operation}`;
     }).filter(Boolean).join('\n');
   }
 }

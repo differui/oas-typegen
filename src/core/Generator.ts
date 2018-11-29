@@ -5,9 +5,8 @@ import { AST } from 'json-schema-to-typescript/dist/src/types/AST';
 import { AsyncSeriesHook, Hook } from 'tapable';
 
 export interface GeneratorOptions {
-  helper: string;
-  helperName: string;
   format: 'es'|'cjs';
+  language: 'js'|'ts'|'dts';
 }
 
 export interface GeneratorHooks {

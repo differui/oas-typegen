@@ -13,8 +13,6 @@ export interface ConfigOutputOptions {
   language?: 'js'|'ts'|'dts';
   intro?: string;
   outro?: string;
-  helper?: string;
-  helperName?: string;
 }
 
 export interface ConfigOptions {
@@ -35,8 +33,6 @@ export const DEFAULT_CONFIG_OUTPUT_OPTIONS: Required<ConfigOutputOptions> = {
   language: DEFAULT_OUTPUT_OPTIONS.language,
   intro: DEFAULT_OUTPUT_OPTIONS.intro,
   outro: DEFAULT_OUTPUT_OPTIONS.outro,
-  helper: DEFAULT_OUTPUT_OPTIONS.helper,
-  helperName: DEFAULT_OUTPUT_OPTIONS.helperName,
 };
 
 export const DEFAULT_CONFIG_OPTIONS = {
@@ -70,9 +66,6 @@ const HELP_MESSAGE = `
                    > ts: create a .ts file and declare types as interfaces
                    > dts: create a .js file and declare types in a .d.ts
     --plugin, -p   Load the plugin from local node_modules.
-
-    --helper       Path or url for customize ajax helper.
-    --helper-name  Name for ajax helper. Use "dispatchRequest" by default.
 
     --intro        Content to insert at top of generated type file.
     --outro        Content to insert at bottom of generated type file.
@@ -126,14 +119,6 @@ class CLI {
           alias: 'l',
           default: DEFAULT_OUTPUT_OPTIONS.language,
         },
-        helper: {
-          type: 'string',
-          default: DEFAULT_OUTPUT_OPTIONS.helper,
-        },
-        helperName: {
-          type: 'string',
-          default: DEFAULT_OUTPUT_OPTIONS.helperName,
-        },
         intro: {
           type: 'string',
           default: DEFAULT_OUTPUT_OPTIONS.intro,
@@ -173,19 +158,12 @@ class CLI {
       file,
       language,
       output,
-      helper,
-      helperName,
     } = this.cli.flags;
     const ext = language.substr(-2);
 
     // rule: if provide 'dir' and omit 'output' then create output
     if (!output && dir && file) {
       this.cli.flags.output = resolvePath(dir, file.endsWith(`.${ext}`) ? file : `${file}.${ext}`);
-    }
-
-    // rule: if omit 'helper' then use default helper name
-    if (!helper && helperName) {
-      this.cli.flags.helper = `./${helperName}`;
     }
   }
 
@@ -200,8 +178,6 @@ class CLI {
       output,
       intro,
       outro,
-      helper,
-      helperName,
     } = this.cli.flags;
 
     return {
@@ -210,8 +186,6 @@ class CLI {
       language,
       intro,
       outro,
-      helper,
-      helperName,
     } as Required<ConfigOutputOptions>;
   }
 

@@ -4,6 +4,7 @@ import JsGenerator from '@/core/generators/JsGenerator';
 import TsGenerator from '@/core/generators/TsGenerator';
 import IdentifierUtils from '@/core/libs/IdentifierUtils';
 import JsDocUtils from '@/core/libs/JsDocUtils';
+import JsonSchemaMap from '@/core/libs/JsonSchemaMap';
 import JsonSchemaUtils from '@/core/libs/JsonSchemaUtils';
 import OasDocument from '@/core/libs/OasDocument';
 import ParameterUtils from '@/core/libs/ParameterUtils';
@@ -16,12 +17,14 @@ import OperationResponseFragment from '@/core/oas-fragments/OperationResponseFra
 import DefinitionVisitor from '@/core/oas-visitors/DefinitionVisitor';
 import OperationVisitor from '@/core/oas-visitors/OperationVisitor';
 import { DocumentType } from '@/core/OasFragment';
+import AxiosPlugin from '@/core/plugins/AxiosPlugin';
 import EnhanceTypeNamePlugin from '@/core/plugins/EnhanceTypeNamePlugin';
 import FixRefPlugin from '@/core/plugins/FixRefPlugin';
 import LogPlugin from '@/core/plugins/LogPlugin';
 import Spinner from '@/core/Spinner';
 import * as identifier from '@/identifier';
 import FileSystem from '@/util/FileSystem';
+import ModuleSystem from '@/util/ModuleSystem';
 import Network from '@/util/Network';
 import Queue from '@/util/Queue';
 import Timer from '@/util/Timer';
@@ -29,8 +32,6 @@ import { Container, decorate, injectable } from 'inversify';
 import { AST } from 'json-schema-to-typescript/dist/src/types/AST';
 import { Oas20CompositeVisitor, OasLibraryUtils } from 'oai-ts-core';
 import { HookMap } from 'tapable';
-import JsonSchemaMap from './core/libs/JsonSchemaMap';
-import ModuleSystem from './util/ModuleSystem';
 
 const container = new Container({
   skipBaseClassChecks: true,
@@ -73,6 +74,7 @@ container.bind<JsGenerator>(identifier.JsGenerator).to(JsGenerator);
 container.bind<EnhanceTypeNamePlugin>(identifier.EnhanceTypeNamePlugin).to(EnhanceTypeNamePlugin);
 container.bind<FixRefPlugin>(identifier.FixRefPlugin).to(FixRefPlugin);
 container.bind<LogPlugin>(identifier.LogPlugin).to(LogPlugin);
+container.bind<AxiosPlugin>(identifier.AxiosPlugin).to(AxiosPlugin);
 
 // maps
 container.bind<Map<string, HookMap>>(identifier.HookMap).to(Map);

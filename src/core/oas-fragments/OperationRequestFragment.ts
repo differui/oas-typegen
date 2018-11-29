@@ -22,6 +22,14 @@ class OperationRequestFragment extends OperationFragment {
     if (parameters && parameters.length) {
       const properties = this.parameterUtils.transform(parameters);
 
+      if (properties.query) {
+        properties.params = properties.query;
+        delete properties.query;
+      }
+      if (properties.body) {
+        properties.data = properties.body;
+        delete properties.body;
+      }
       return {
         type: 'object',
         title: this.title,

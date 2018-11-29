@@ -35,6 +35,7 @@ export const JsGenerator = Symbol('JsGenerator');
 export const EnhanceTypeNamePlugin = Symbol('EnhanceTypeNamePlugin');
 export const FixRefPlugin = Symbol('FixRefPlugin');
 export const LogPlugin = Symbol('LogPlugin');
+export const AxiosPlugin = Symbol('AxiosPlugin');
 
 // maps
 export const HookMap = Symbol('HookMap');
