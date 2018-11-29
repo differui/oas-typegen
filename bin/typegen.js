@@ -417,7 +417,7 @@ let JsonSchemaUtils$1 = class JsonSchemaUtils$$1 {
                 }
                 return Object.values(schema.properties || {}).some(property => this.hasRef(property, processedSet));
             default:
-                return typeof schema.$ref === 'string';
+                return typeof schema.$ref === 'string' && schema.$ref !== '';
         }
     }
     dereferenceSchema(schema, name, options) {
@@ -550,7 +550,7 @@ let JsGenerator$1 = class JsGenerator$$1 extends Generator$1 {
          ${tags.map(tag => `* ${tag}`).join('\n')}
          */
         export function ${fragment.id}(${requestGuard ? 'request' : ''}) {
-          return ${options.helperName}(${JSON.stringify(fragment.path)}, ${requestGuard ? 'request' : ''});
+          return ${options.helperName}(${JSON.stringify(fragment.method)}, ${JSON.stringify(fragment.path)}, ${requestGuard ? 'request' : ''});
         }`;
         }).filter(Boolean).join('\n');
     }
@@ -632,7 +632,7 @@ let TsGenerator$1 = class TsGenerator$$1 extends Generator$1 {
          * \`${fragment.method} ${fragment.path}\`
          */
         export function ${fragment.id}(${requestGuard}): Promise<${responseGuard}> {
-          return dispatchRequest(${JSON.stringify(fragment.path)}, ${requestGuard ? 'request' : ''});
+          return dispatchRequest(${JSON.stringify(fragment.method)}, ${JSON.stringify(fragment.path)}, ${requestGuard ? 'request' : ''});
         }`;
         }).filter(Boolean).join('\n');
     }
@@ -1301,8 +1301,9 @@ let OperationFragment$1 = class OperationFragment extends OasFragment$2 {
         return this.document.operationId;
     }
     get introduction() {
-        const { summary, description, } = this.document;
-        return `${summary || describe} ${summary && description ? '-' : ''} ${description || ''}`.trim();
+        const summary = (this.document.summary || '').replace(/[\n\r\s]+/g, ' ');
+        const description = (this.document.description || '').replace(/[\n\r\s]+/g, ' ');
+        return `${summary || description} ${summary && description ? '-' : ''} ${description || ''}`.trim();
     }
     get deprecated() {
         return this.document.deprecated;
