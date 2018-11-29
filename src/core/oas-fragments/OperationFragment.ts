@@ -11,12 +11,10 @@ class OperationFragment extends OasFragment<Oas20Operation> {
   }
 
   public get introduction() {
-    const {
-      summary,
-      description,
-    } = this.document;
+    const summary = (this.document.summary || '').replace(/[\n\r\s]+/g, ' ');
+    const description = (this.document.description || '').replace(/[\n\r\s]+/g, ' ');
 
-    return `${summary || describe} ${summary && description ? '-' : ''} ${description || ''}`.trim();
+    return `${summary || description} ${summary && description ? '-' : ''} ${description || ''}`.trim();
   }
 
   public get deprecated() {
