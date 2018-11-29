@@ -1,3 +1,9 @@
+[0.2.x]()
+
++ add AxiosPlugin;
++ remove --helper & --helperName flags;
++ remove LogPlugin from build-in plugin;
+
 [0.1.4](4978dcf2340c292658f5c1b62808a2bb2dfcdf17)
 
 + set undefined definitions ($ref) to any type;
