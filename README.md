@@ -1,4 +1,4 @@
-# openapi-typegen
+# oas-typegen
 > Generate JSDoc/TS/DTS type definitions from OpenAPI document(V2).
 
 ## Setup
