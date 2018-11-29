@@ -112,7 +112,7 @@ class JsonSchemaUtils {
         }
         return Object.values(schema.properties || {}).some(property => this.hasRef(property, processedSet));
       default:
-        return typeof schema.$ref === 'string';
+        return typeof schema.$ref === 'string' && schema.$ref !== '';
     }
   }
 
