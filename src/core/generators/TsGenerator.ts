@@ -76,7 +76,7 @@ class TsGenerator extends Generator {
          * \`${fragment.method} ${fragment.path}\`
          */
         export function ${fragment.id}(${requestGuard}): Promise<${responseGuard}> {
-          return dispatchRequest(${JSON.stringify(fragment.path)}, ${requestGuard ? 'request' : ''});
+          return dispatchRequest(${JSON.stringify(fragment.method)}, ${JSON.stringify(fragment.path)}, ${requestGuard ? 'request' : ''});
         }`;
     }).filter(Boolean).join('\n');
   }

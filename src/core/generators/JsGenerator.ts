@@ -102,7 +102,7 @@ class JsGenerator extends Generator {
          ${tags.map(tag => `* ${tag}`).join('\n')}
          */
         export function ${fragment.id}(${requestGuard ? 'request' : ''}) {
-          return ${options.helperName}(${JSON.stringify(fragment.path)}, ${requestGuard ? 'request' : ''});
+          return ${options.helperName}(${JSON.stringify(fragment.method)}, ${JSON.stringify(fragment.path)}, ${requestGuard ? 'request' : ''});
         }`;
     }).filter(Boolean).join('\n');
   }
