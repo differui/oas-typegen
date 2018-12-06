@@ -1,6 +1,8 @@
 # oas-typegen
 > Generate JSDoc/TS/DTS type definitions from OpenAPI document(V2).
 
+[![CircleCI](https://circleci.com/gh/differui/oas-typegen.svg?style=svg)](https://circleci.com/gh/differui/oas-typegen)
+
 ## Setup
 
 ```js
