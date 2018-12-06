@@ -27,14 +27,14 @@ $ typegen --input <input> --output <output>
 Options:
 
   --input, -i    (required) Path to OpenAPI document in local file system or
-                  url on lines.
+                 url on lines.
   --output, -o   The output path and file for generated assets.
   --dir, -d      The output directory for generated assets. Use current dire-
-                  tory by default.
+                 tory by default.
 
   --name, -n     Specifies the name of your swagger document.
   --config, -c   Use this config file(if argument is used but value is unspe-
-                  cified, defaults to typegen.json).
+                 cified, defaults to typegen.json).
   --format, -f   Type of output assets (cjs, es).Use "es" by default.
   --language, -l Choice one output language in js ts and dts
                   > js: (default) create a .js file and comment with JSDoc
