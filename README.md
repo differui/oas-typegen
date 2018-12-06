@@ -17,7 +17,7 @@ typegen -i http://petstore.swagger.io/v2/swagger.json
 
 ## Options
 
-```bash
+```
 Generate TS/JS/DTS type definitions from OpenAPI document (V2).
 
 Usage
