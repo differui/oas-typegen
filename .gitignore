@@ -1,4 +1,5 @@
 dest/
+docs/
 dumb/
 scripts/ares/
 package-lock.json
