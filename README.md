@@ -37,9 +37,9 @@ Options:
                  cified, defaults to typegen.json).
   --format, -f   Type of output assets (cjs, es).Use "es" by default.
   --language, -l Choice one output language in js ts and dts
-                  > js: (default) create a .js file and comment with JSDoc
-                  > ts: create a .ts file and declare types as interfaces
-                  > dts: create a .js file and declare types in a .d.ts
+                 > js: (default) create a .js file and comment with JSDoc
+                 > ts: create a .ts file and declare types as interfaces
+                 > dts: create a .js file and declare types in a .d.ts
   --plugin, -p   Load the plugin from local node_modules.
 
   --intro        Content to insert at top of generated type file.
