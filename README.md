@@ -1,4 +1,4 @@
-oas-typegen [![CircleCI](https://img.shields.io/circleci/project/github/differui/oas-typegen/master.svg?style=flat-square)](https://circleci.com/gh/differui/oas-typegen) [![npm](https://img.shields.io/npm/v/oas-typegen.svg?style=flat-square)](https://www.npmjs.com/package/json-schema-to-typescript) [![mit](https://img.shields.io/npm/l/json-schema-to-typescript.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+oas-typegen [![CircleCI](https://img.shields.io/circleci/project/github/differui/oas-typegen/master.svg?style=flat-square)](https://circleci.com/gh/differui/oas-typegen) [![npm](https://img.shields.io/npm/v/oas-typegen.svg?style=flat-square)](https://www.npmjs.com/package/oas-typegen) [![mit](https://img.shields.io/npm/l/oas-typegen.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 =====
 
 > Generate JSDoc/TS/DTS type definitions from OpenAPI document(V2).
